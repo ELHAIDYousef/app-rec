@@ -12,6 +12,7 @@ class Employe(Base):
     code_employe = Column(String(20), unique=True, nullable=False)
     role         = Column(Enum("employe", "formateur"), nullable=False, default="employe")
     is_active    = Column(Integer, default=1)
+    is_admin     = Column(Integer, default=0)
     cree_le      = Column(DateTime(timezone=True), server_default=func.now())
 
     formations = relationship("Formation", back_populates="createur")

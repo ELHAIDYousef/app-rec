@@ -71,12 +71,13 @@ export default function FormationAdmin({ employe, onLogout }) {
     setQuestions(q); setOnglet("questions");
   };
 
-  const nav = ["employes", "formations", "nouvelle-formation", "creer-formateur"];
+  const nav = ["employes", "formations", "nouvelle-formation",
+    ...(employe.is_admin ? ["creer-formateur"] : [])];
   const labels = {
-    employes:           "Employés",
-    formations:         "Formations",
+    employes:             "Employés",
+    formations:           "Formations",
     "nouvelle-formation": "Nouvelle formation",
-    "creer-formateur":      "Créer formateur",
+    "creer-formateur":    "Créer formateur",
   };
 
   const isErr = msg.startsWith("Erreur");
@@ -249,7 +250,7 @@ export default function FormationAdmin({ employe, onLogout }) {
           </div>
         )}
 
-        {onglet === "creer-formateur" && (
+        {onglet === "creer-formateur" && employe.is_admin && (
           <div>
             <div className="page-header">
               <div>

@@ -20,10 +20,11 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
     return {
         "access_token": creer_token(emp.id, emp.role),
         "employe": {
-            "id":   emp.id,
-            "nom":  emp.nom,
-            "code": emp.code_employe,
-            "role": emp.role,
+            "id":       emp.id,
+            "nom":      emp.nom,
+            "code":     emp.code_employe,
+            "role":     emp.role,
+            "is_admin": emp.is_admin,
         },
     }
 

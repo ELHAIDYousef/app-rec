@@ -20,6 +20,9 @@ router   = APIRouter(prefix="/api/candidatures", tags=["Candidatures"])
 cfg      = get_settings()
 logger   = logging.getLogger(__name__)
 
+CV_DIR = os.path.join(cfg.UPLOAD_DIR, "cvs")
+os.makedirs(CV_DIR, exist_ok=True)
+
 
 def _enrichir(c: Application) -> CandidatureOut:
     out = CandidatureOut.model_validate(c)
@@ -180,9 +183,8 @@ async def postuler(
         if cv.content_type != "application/pdf": raise HTTPException(400, "Le CV doit être un PDF")
         content = await cv.read()
         if len(content) > cfg.MAX_UPLOAD_MB * 1024 * 1024: raise HTTPException(400, f"CV trop volumineux (max {cfg.MAX_UPLOAD_MB} Mo)")
-        os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
         cv_fichier = f"{uuid.uuid4().hex}_{cv.filename}"
-        with open(os.path.join(cfg.UPLOAD_DIR, cv_fichier), "wb") as f: f.write(content)
+        with open(os.path.join(CV_DIR, cv_fichier), "wb") as f: f.write(content)
 
     c = Application(offre_id=offre_id, user_id=user.id, motivation=motivation.strip(), cv_fichier=cv_fichier)
     db.add(c); db.flush()
@@ -190,9 +192,9 @@ async def postuler(
     db.commit(); db.refresh(c)
 
     background_tasks.add_task(email_reception, user.email, user.nom, offre.titre)
-    background_tasks.add_task(_run_nlp, c.id, cfg.UPLOAD_DIR, cv_fichier, motivation.strip(), offre.titre, offre.description, offre.competences or [])
+    background_tasks.add_task(_run_nlp, c.id, CV_DIR, cv_fichier, motivation.strip(), offre.titre, offre.description, offre.competences or [])
     if cfg.GROQ_API_KEY:
-        background_tasks.add_task(_run_groq, c.id, cfg.UPLOAD_DIR, cv_fichier, motivation.strip(), offre.titre, offre.description, offre.competences or [])
+        background_tasks.add_task(_run_groq, c.id, CV_DIR, cv_fichier, motivation.strip(), offre.titre, offre.description, offre.competences or [])
 
     return _enrichir_candidat(c)
 
@@ -239,7 +241,7 @@ def relancer_nlp(c_id: int, background_tasks: BackgroundTasks, db: Session = Dep
     c = db.get(Application, c_id)
     if not c: raise HTTPException(404, "Candidature introuvable")
     c.score_nlp = None; c.analyse_nlp = None; db.commit()
-    background_tasks.add_task(_run_nlp, c.id, cfg.UPLOAD_DIR, c.cv_fichier, c.motivation,
+    background_tasks.add_task(_run_nlp, c.id, CV_DIR, c.cv_fichier, c.motivation,
                               c.offre.titre if c.offre else "", c.offre.description if c.offre else "",
                               c.offre.competences if c.offre else [])
     db.refresh(c)
@@ -251,7 +253,7 @@ def relancer_groq(c_id: int, background_tasks: BackgroundTasks, db: Session = De
     c = db.get(Application, c_id)
     if not c: raise HTTPException(404, "Candidature introuvable")
     c.score_groq = None; c.analyse_groq = None; db.commit()
-    background_tasks.add_task(_run_groq, c.id, cfg.UPLOAD_DIR, c.cv_fichier, c.motivation,
+    background_tasks.add_task(_run_groq, c.id, CV_DIR, c.cv_fichier, c.motivation,
                               c.offre.titre if c.offre else "", c.offre.description if c.offre else "",
                               c.offre.competences if c.offre else [])
     db.refresh(c)
@@ -293,7 +295,7 @@ def telecharger_cv(c_id: int, db: Session = Depends(get_db), user: User = Depend
     if user.role == "candidat" and c.user_id != user.id: raise HTTPException(403, "Accès refusé")
     if not c.cv_fichier:
         raise HTTPException(404, "Ce candidat n'a pas joint de CV à sa candidature.")
-    path = os.path.join(cfg.UPLOAD_DIR, c.cv_fichier)
+    path = os.path.join(CV_DIR, c.cv_fichier)
     if not os.path.exists(path):
         raise HTTPException(404, "Le fichier CV a été supprimé du serveur. Le candidat devra soumettre une nouvelle candidature.")
     return FileResponse(path, media_type="application/pdf", filename=c.cv_fichier)

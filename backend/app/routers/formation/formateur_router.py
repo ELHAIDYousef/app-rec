@@ -3,19 +3,20 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, B
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from app.core.database import get_db, SessionLocal
+from app.core.config import get_settings
 from app.models.formation import Employe, Formation, Question
 from app.routers.formation.schemas import (
     EmployeIn, EmployeListOut, FormationListOut,
     QuestionOut, QuestionsFormationOut,
 )
-from app.routers.formation.formation_auth import require_formateur, generer_code, ROLE_FORMATEUR
+from app.routers.formation.formation_auth import require_formateur, require_admin_formateur, generer_code, ROLE_FORMATEUR
 from app.routers.formation.groq_service import generer_questions
 import fitz
 
 router = APIRouter(prefix="/api/formation/formateur", tags=["Formation — Formateur"])
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "app/uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+FORMATION_DIR = os.path.join(get_settings().UPLOAD_DIR, "formations")
+os.makedirs(FORMATION_DIR, exist_ok=True)
 
 
 # ── Employés ──────────────────────────────────────────────
@@ -67,7 +68,7 @@ def basculer_employe(
 def creer_formateur(
     payload: EmployeIn,
     db: Session = Depends(get_db),
-    _:  Employe = Depends(require_formateur),
+    _: Employe = Depends(require_admin_formateur),
 ):
     code = generer_code(role=ROLE_FORMATEUR)
     while db.query(Employe).filter(Employe.code_employe == code).first():
@@ -108,7 +109,7 @@ async def creer_formation(
 
     if fichier:
         data = await fichier.read()
-        path = os.path.join(UPLOAD_DIR, f"form_{fichier.filename}")
+        path = os.path.join(FORMATION_DIR, f"form_{fichier.filename}")
         with open(path, "wb") as fp:
             fp.write(data)
         doc   = fitz.open(stream=data, filetype="pdf")

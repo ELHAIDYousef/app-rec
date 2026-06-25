@@ -13,6 +13,7 @@ class EmployeOut(BaseModel):
     nom:      str
     code:     str
     role:     str
+    is_admin: int = 0
 
     model_config = {"from_attributes": True}
 

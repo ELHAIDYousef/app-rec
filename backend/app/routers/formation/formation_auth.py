@@ -57,3 +57,9 @@ def require_formateur(emp: Employe = Depends(get_employe)) -> Employe:
     if emp.role != ROLE_FORMATEUR:
         raise HTTPException(403, "Accès réservé aux formateurs")
     return emp
+
+
+def require_admin_formateur(emp: Employe = Depends(get_employe)) -> Employe:
+    if emp.role != ROLE_FORMATEUR or not emp.is_admin:
+        raise HTTPException(403, "Accès réservé aux formateurs administrateurs")
+    return emp
