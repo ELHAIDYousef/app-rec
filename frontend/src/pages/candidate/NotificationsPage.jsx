@@ -4,30 +4,42 @@ import { Spinner, EmptyState, Button } from "components/ui";
 import { formatDateTime } from "utils/helpers";
 
 export default function NotificationsPage() {
-  const [notifs, setNotifs]     = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [notifs,  setNotifs]  = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState("");
 
   useEffect(() => {
-    notificationsAPI.lister().then(r => setNotifs(r.data))
+    notificationsAPI.lister()
+      .then(r => setNotifs(r.data))
+      .catch(() => setError("Impossible de charger les notifications."))
       .finally(() => setLoading(false));
   }, []);
 
   const markRead = async id => {
-    await notificationsAPI.marquerLue(id);
-    setNotifs(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    try {
+      await notificationsAPI.marquerLue(id);
+      setNotifs(prev => prev.map(n => n.id === id ? { ...n, lue: true } : n));
+    } catch {
+      setError("Impossible de marquer la notification comme lue.");
+    }
   };
 
   const markAll = async () => {
-    await notificationsAPI.toutLire();
-    setNotifs(prev => prev.map(n => ({ ...n, is_read: true })));
+    try {
+      await notificationsAPI.toutMarquer();
+      setNotifs(prev => prev.map(n => ({ ...n, lue: true })));
+    } catch {
+      setError("Impossible de marquer toutes les notifications comme lues.");
+    }
   };
 
-  const unread = notifs.filter(n => !n.is_read).length;
+  const unread = notifs.filter(n => !n.lue).length;
 
   if (loading) return <div className="loading-page"><Spinner size={28} /></div>;
 
   return (
     <div>
+      {error && <div className="alert-error" style={{ marginBottom: 12 }}>{error}</div>}
       <div className="page-header">
         <div>
           <h1 className="page-title">Notifications</h1>
@@ -52,15 +64,15 @@ export default function NotificationsPage() {
           {notifs.map(n => (
             <div
               key={n.id}
-              className={`notif-item ${!n.is_read ? "unread" : ""}`}
-              onClick={() => !n.is_read && markRead(n.id)}
+              className={`notif-item ${!n.lue ? "unread" : ""}`}
+              onClick={() => !n.lue && markRead(n.id)}
             >
-              <div className={`notif-dot ${n.is_read ? "read" : ""}`} />
+              <div className={`notif-dot ${n.lue ? "read" : ""}`} />
               <div style={{ flex: 1 }}>
-                <p className={`notif-msg ${!n.is_read ? "unread" : ""}`}>
+                <p className={`notif-msg ${!n.lue ? "unread" : ""}`}>
                   {n.message}
                 </p>
-                <p className="notif-time">{formatDateTime(n.created_at)}</p>
+                <p className="notif-time">{formatDateTime(n.cree_le)}</p>
 
                 {/* Cal.com button for interview notifications */}
                 {n.type === "interview" && '' && (

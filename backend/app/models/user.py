@@ -49,6 +49,10 @@ class RessourceHumaine(User):
     cal_link    = Column(String(500), nullable=True)
     cal_api_key = Column(String(500), nullable=True)
 
+    @property
+    def cal_configured(self) -> bool:
+        return bool(self.cal_api_key)
+
     __mapper_args__ = {"polymorphic_identity": UserRole.rh}
 
 

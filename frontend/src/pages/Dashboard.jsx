@@ -118,7 +118,7 @@ function RHDashboard() {
   const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
-    const hasCal = !!(user?.cal_api_key);
+    const hasCal = !!(user?.cal_configured);
     setHasCal(hasCal);
     Promise.all([
       adminAPI.statistiques(),

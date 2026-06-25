@@ -14,9 +14,9 @@ class UserOut(BaseModel):
     # Candidat uniquement
     telephone:   Optional[str] = None
     # RH uniquement
-    departement: Optional[str] = None
-    cal_link:    Optional[str] = None
-    cal_api_key: Optional[str] = None
+    departement:    Optional[str] = None
+    cal_link:       Optional[str] = None
+    cal_configured: bool          = False
 
     model_config = {"from_attributes": True}
 

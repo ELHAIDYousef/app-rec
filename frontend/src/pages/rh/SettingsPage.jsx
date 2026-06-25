@@ -6,8 +6,9 @@ import { getApiError } from "utils/helpers";
 import toast from "react-hot-toast";
 
 export default function SettingsPage() {
-  const [form,       setForm]       = useState({ cal_link: "", cal_api_key: "" });
-  const [loading,    setLoading]    = useState(true);
+  const [form,          setForm]          = useState({ cal_link: "", cal_api_key: "" });
+  const [calConfigured, setCalConfigured] = useState(false);
+  const [loading,       setLoading]       = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [testing,    setTesting]    = useState(false);
   const [errors,     setErrors]     = useState({});
@@ -17,7 +18,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     authAPI.me().then(r => {
-      setForm({ cal_link: r.data.cal_link || "", cal_api_key: r.data.cal_api_key || "" });
+      setForm({ cal_link: r.data.cal_link || "", cal_api_key: "" });
+      setCalConfigured(r.data.cal_configured || false);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -111,10 +113,13 @@ export default function SettingsPage() {
                   {showKey ? "Masquer" : "Afficher"}
                 </button>
               </div>
-              <p className="field-hint">Cal.com → Settings → Developer → API keys</p>
+              {calConfigured && !form.cal_api_key
+                ? <p className="field-hint">Clé déjà configurée — laissez vide pour la conserver, ou saisissez-en une nouvelle pour la remplacer</p>
+                : <p className="field-hint">Cal.com → Settings → Developer → API keys</p>
+              }
             </div>
 
-            {form.cal_api_key && (
+            {(form.cal_api_key || calConfigured) && (
               <div style={{ marginBottom: 16 }}>
                 <Button type="button" variant="outline" size="sm" loading={testing} onClick={handleTest}>
                   Tester la connexion
