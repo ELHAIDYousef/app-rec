@@ -1,5 +1,5 @@
-import os
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
+import os, math
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from app.core.database import get_db, SessionLocal
@@ -21,17 +21,23 @@ os.makedirs(FORMATION_DIR, exist_ok=True)
 
 # ── Employés ──────────────────────────────────────────────
 
-@router.get("/employes", response_model=List[EmployeListOut])
+@router.get("/employes")
 def lister_employes(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
     _:  Employe = Depends(require_formateur),
 ):
-    return (
-        db.query(Employe)
-        .filter(Employe.role == "employe")
-        .order_by(Employe.cree_le.desc())
-        .all()
-    )
+    q = db.query(Employe).filter(Employe.role == "employe").order_by(Employe.cree_le.desc())
+    total = q.count()
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": [EmployeListOut.model_validate(e).model_dump(mode="json") for e in items],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
 @router.post("/employes", status_code=201)
@@ -80,20 +86,26 @@ def creer_formateur(
 
 # ── Formations ────────────────────────────────────────────
 
-@router.get("/formations", response_model=List[FormationListOut])
+@router.get("/formations")
 def lister_formations(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
     _:  Employe = Depends(require_formateur),
 ):
-    formations = db.query(Formation).order_by(Formation.cree_le.desc()).all()
-    return [
-        FormationListOut(
-            id=f.id, titre=f.titre,
-            nb_questions=len(f.questions),
-            cree_le=f.cree_le,
-        )
-        for f in formations
-    ]
+    q = db.query(Formation).order_by(Formation.cree_le.desc())
+    total = q.count()
+    formations = q.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": [
+            FormationListOut(id=f.id, titre=f.titre, nb_questions=len(f.questions), cree_le=f.cree_le).model_dump(mode="json")
+            for f in formations
+        ],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
 @router.post("/formations", status_code=201)
@@ -148,17 +160,23 @@ async def creer_formation(
     }
 
 
-@router.get("/formateurs", response_model=List[EmployeListOut])
+@router.get("/formateurs")
 def lister_formateurs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
     _:  Employe = Depends(require_formateur),
 ):
-    return (
-        db.query(Employe)
-        .filter(Employe.role == ROLE_FORMATEUR)
-        .order_by(Employe.cree_le.desc())
-        .all()
-    )
+    q = db.query(Employe).filter(Employe.role == ROLE_FORMATEUR).order_by(Employe.cree_le.desc())
+    total = q.count()
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": [EmployeListOut.model_validate(e).model_dump(mode="json") for e in items],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
 @router.delete("/formations/{fid}", status_code=204)

@@ -1,4 +1,4 @@
-import os, uuid, logging
+import os, uuid, logging, math
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, BackgroundTasks
 from fastapi.responses import FileResponse
@@ -199,17 +199,32 @@ async def postuler(
     return _enrichir_candidat(c)
 
 
-@router.get("/mes-candidatures", response_model=List[CandidatureCandidat])
-def mes_candidatures(db: Session = Depends(get_db), user: User = Depends(require_role("candidat"))):
-    cs = db.query(Application).filter(Application.user_id == user.id).order_by(Application.postule_le.desc()).all()
-    return [_enrichir_candidat(c) for c in cs]
+@router.get("/mes-candidatures")
+def mes_candidatures(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("candidat")),
+):
+    q = db.query(Application).filter(Application.user_id == user.id).order_by(Application.postule_le.desc())
+    total = q.count()
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": [_enrichir_candidat(c).model_dump(mode="json") for c in items],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
-@router.get("", response_model=List[CandidatureOut])
+@router.get("")
 def lister_candidatures(
     offre_id: Optional[int]             = Query(None),
     statut:   Optional[StatutCandidature] = Query(None),
     tri:      str                         = Query("date"),
+    page:     int                         = Query(1, ge=1),
+    page_size: int                        = Query(10, ge=1, le=100),
     db:       Session = Depends(get_db),
     user:     User    = Depends(require_role("rh", "admin")),
 ):
@@ -225,7 +240,15 @@ def lister_candidatures(
         q = q.order_by(case((Application.score_groq == None, 1), else_=0), Application.score_groq.desc())
     else:
         q = q.order_by(Application.postule_le.desc())
-    return [_enrichir(c) for c in q.all()]
+    total = q.count()
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": [_enrichir(c).model_dump(mode="json") for c in items],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
 @router.get("/{c_id}", response_model=CandidatureOut)

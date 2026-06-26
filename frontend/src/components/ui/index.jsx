@@ -149,3 +149,30 @@ export function Textarea({ label, error, ...props }) {
     </div>
   );
 }
+
+// ── Pagination ────────────────────────────────────────────
+export function Pagination({ page, pages, total, onChange }) {
+  if (!pages || pages <= 1) return null;
+  return (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--gray2)" }}>
+      <button
+        className="btn btn-outline btn-sm"
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+      >
+        ← Précédent
+      </button>
+      <span style={{ fontSize: 13, color: "var(--text2)", minWidth: 100, textAlign: "center" }}>
+        Page {page} / {pages}
+        {total != null && <span style={{ color: "var(--text3)", marginLeft: 6 }}>({total})</span>}
+      </span>
+      <button
+        className="btn btn-outline btn-sm"
+        disabled={page >= pages}
+        onClick={() => onChange(page + 1)}
+      >
+        Suivant →
+      </button>
+    </div>
+  );
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { offresAPI } from "api";
-import { Spinner, EmptyState, Button, StatusBadge } from "components/ui";
+import { Spinner, EmptyState, Button, StatusBadge, Pagination } from "components/ui";
 import { formatDate, getApiError } from "utils/helpers";
 import toast from "react-hot-toast";
 
@@ -9,13 +9,23 @@ export default function ManageOffersPage() {
   const navigate          = useNavigate();
   const [offers, setOffers]   = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page,   setPage]     = useState(1);
+  const [pages,  setPages]    = useState(1);
+  const [total,  setTotal]    = useState(0);
+  const PAGE_SIZE = 10;
 
-  const load = () =>
-    offresAPI.lister()
-      .then(r => setOffers(r.data))
+  const load = (p = page) =>
+    offresAPI.lister({ page: p, page_size: PAGE_SIZE })
+      .then(r => {
+        setOffers(r.data.items);
+        setTotal(r.data.total);
+        setPages(r.data.pages);
+      })
       .finally(() => setLoading(false));
 
   useEffect(() => { load(); }, []);
+
+  const handlePage = p => { setPage(p); setLoading(true); load(p); };
 
   const handleDelete = async (id, title) => {
     if (!window.confirm(`Supprimer l'offre "${title}" ? Toutes les candidatures associées seront aussi supprimées.`))
@@ -23,7 +33,7 @@ export default function ManageOffersPage() {
     try {
       await offresAPI.supprimer(id);
       toast.success("Offre supprimée");
-      load();
+      load(page);
     } catch (err) {
       toast.error(getApiError(err));
     }
@@ -36,7 +46,7 @@ export default function ManageOffersPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Gestion des offres</h1>
-          <p className="page-subtitle">{offers.length} offre(s) au total</p>
+          <p className="page-subtitle">{total} offre(s) au total</p>
         </div>
         <Button variant="blue" onClick={() => navigate("/offers/new")}>
           + Nouvelle offre
@@ -49,43 +59,46 @@ export default function ManageOffersPage() {
           description="Cliquez sur Nouvelle offre pour commencer à recruter."
         />
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Titre</th>
-                <th>Statut</th>
-                <th>Ouverture</th>
-                <th>Clôture</th>
-                <th>Candidatures</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {offers.map(o => (
-                <tr key={o.id}>
-                  <td style={{ fontWeight: 500 }}>{o.titre}</td>
-                  <td><StatusBadge status={o.statut} /></td>
-                  <td style={{ color: "var(--text2)", fontSize: 13 }}>{formatDate(o.date_debut)}</td>
-                  <td style={{ color: "var(--text2)", fontSize: 13 }}>{formatDate(o.date_fin)}</td>
-                  <td style={{ fontWeight: 500 }}>{o.nb_candidatures || 0}</td>
-                  <td>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <Button size="sm" variant="outline"
-                        onClick={() => navigate(`/offers/${o.id}/edit`)}>
-                        Modifier
-                      </Button>
-                      <Button size="sm" variant="danger"
-                        onClick={() => handleDelete(o.id, o.titre)}>
-                        Supprimer
-                      </Button>
-                    </div>
-                  </td>
+        <>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Titre</th>
+                  <th>Statut</th>
+                  <th>Ouverture</th>
+                  <th>Clôture</th>
+                  <th>Candidatures</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {offers.map(o => (
+                  <tr key={o.id}>
+                    <td style={{ fontWeight: 500 }}>{o.titre}</td>
+                    <td><StatusBadge status={o.statut} /></td>
+                    <td style={{ color: "var(--text2)", fontSize: 13 }}>{formatDate(o.date_debut)}</td>
+                    <td style={{ color: "var(--text2)", fontSize: 13 }}>{formatDate(o.date_fin)}</td>
+                    <td style={{ fontWeight: 500 }}>{o.nb_candidatures || 0}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <Button size="sm" variant="outline"
+                          onClick={() => navigate(`/offers/${o.id}/edit`)}>
+                          Modifier
+                        </Button>
+                        <Button size="sm" variant="danger"
+                          onClick={() => handleDelete(o.id, o.titre)}>
+                          Supprimer
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination page={page} pages={pages} total={total} onChange={handlePage} />
+        </>
       )}
     </div>
   );
