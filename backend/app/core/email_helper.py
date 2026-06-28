@@ -55,8 +55,10 @@ def lire_emails_non_lus() -> list[dict]:
         mail.select("INBOX")
 
         _, uids = mail.search(None, "UNSEEN")
+        print(f"[EMAIL] IMAP — {len(uids[0].split()) if uids[0] else 0} message(s) non lu(s)")
         for uid in (uids[0].split() if uids[0] else []):
-            _, data = mail.fetch(uid, "(RFC822)")
+            # BODY.PEEK[] ne marque PAS comme lu — évite les pertes si le traitement plante
+            _, data = mail.fetch(uid, "(BODY.PEEK[])")
             if not data or not data[0]:
                 continue
             raw = data[0][1]

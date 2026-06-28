@@ -30,7 +30,8 @@ def _poll_emails_loop():
             from app.routers.stage.assistant import traiter_emails_entrants
             db = SessionLocal()
             try:
-                traiter_emails_entrants(db)
+                result = traiter_emails_entrants(db)
+                print(f"[EMAIL] Polling — traités: {result['traites']}, ignorés: {result['ignores']}")
             finally:
                 db.close()
         except Exception as e:
