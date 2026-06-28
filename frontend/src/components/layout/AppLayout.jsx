@@ -21,6 +21,18 @@ const NAV = {
     { label: "Tableau de bord",   path: "/dashboard" },
     { label: "Utilisateurs",      path: "/admin/users" },
     { label: "Toutes les offres", path: "/admin/offers" },
+    { label: "Sujets & Stages",   path: "/admin/stages" },
+    { label: "Mon profil",        path: "/profile" },
+  ],
+  stagiaire: [
+    { label: "Tableau de bord",   path: "/dashboard" },
+    { label: "Ma candidature",    path: "/stage/candidature" },
+    { label: "Sujets disponibles",path: "/stage/sujets" },
+    { label: "Analyse de profil", path: "/stage/profil" },
+    { label: "Assistant IA",      path: "/stage/assistant" },
+    { label: "Cahier des charges",path: "/stage/cahier" },
+    { label: "Tableau Scrum",     path: "/stage/scrum" },
+    { label: "Mon avancement",    path: "/stage/avancement" },
     { label: "Mon profil",        path: "/profile" },
   ],
 };
@@ -56,7 +68,10 @@ export default function AppLayout({ children }) {
           {navItems.map(item => (
             <button
               key={item.path}
-              className={`nav-item${location.pathname.startsWith(item.path) && item.path !== "/dashboard" ? " active" : location.pathname === item.path ? " active" : ""}`}
+              className={`nav-item${
+                location.pathname === item.path ? " active" :
+                item.path !== "/dashboard" && location.pathname.startsWith(item.path) ? " active" : ""
+              }`}
               onClick={() => navigate(item.path)}
             >
               {item.label}

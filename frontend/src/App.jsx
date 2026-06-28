@@ -8,21 +8,33 @@ import AppLayout from "components/layout/AppLayout";
 import AppSelector      from "pages/AppSelector";
 import FormationApp     from "pages/formation/FormationApp";
 
-import AuthPage            from "pages/auth/AuthPage";
-import Dashboard           from "pages/Dashboard";
-import OffersPage          from "pages/candidate/OffersPage";
-import MyApplicationsPage  from "pages/candidate/MyApplicationsPage";
-import ApplyPage           from "pages/candidate/ApplyPage";
-import NotificationsPage   from "pages/candidate/NotificationsPage";
-import ManageOffersPage    from "pages/rh/ManageOffersPage";
-import OfferFormPage       from "pages/rh/OfferFormPage";
-import ApplicationsPage    from "pages/rh/ApplicationsPage";
-import CandidateDossierPage from "pages/rh/CandidateDossierPage";
-import SettingsPage        from "pages/rh/SettingsPage";
-import AdminUsersPage      from "pages/admin/AdminUsersPage";
-import AdminOffersPage     from "pages/admin/AdminOffersPage";
-import CreateUserPage      from "pages/admin/CreateUserPage";
-import ProfilePage         from "pages/ProfilePage";
+import AuthPage              from "pages/auth/AuthPage";
+import Dashboard             from "pages/Dashboard";
+import OffersPage            from "pages/candidate/OffersPage";
+import MyApplicationsPage    from "pages/candidate/MyApplicationsPage";
+import ApplyPage             from "pages/candidate/ApplyPage";
+import NotificationsPage     from "pages/candidate/NotificationsPage";
+import ManageOffersPage      from "pages/rh/ManageOffersPage";
+import OfferFormPage         from "pages/rh/OfferFormPage";
+import ApplicationsPage      from "pages/rh/ApplicationsPage";
+import CandidateDossierPage  from "pages/rh/CandidateDossierPage";
+import SettingsPage          from "pages/rh/SettingsPage";
+import AdminUsersPage        from "pages/admin/AdminUsersPage";
+import AdminOffersPage       from "pages/admin/AdminOffersPage";
+import AdminSujetsPage       from "pages/admin/AdminSujetsPage";
+import CreateUserPage        from "pages/admin/CreateUserPage";
+import ProfilePage           from "pages/ProfilePage";
+
+// ── Pages Stagiaire ────────────────────────────────────────────
+import CandidatureStage  from "pages/stagiaire/CandidatureStage";
+import SujetsDisponibles from "pages/stagiaire/SujetsDisponibles";
+import ProfilAnalyse     from "pages/stagiaire/ProfilAnalyse";
+import AssistantIA       from "pages/stagiaire/AssistantIA";
+import CahierDesCharges  from "pages/stagiaire/CahierDesCharges";
+import ScrumBoard        from "pages/stagiaire/ScrumBoard";
+import Avancement        from "pages/stagiaire/Avancement";
+
+const ALL_ROLES = ["candidat", "rh", "admin", "stagiaire"];
 
 function Layout({ children, roles }) {
   return (
@@ -42,61 +54,64 @@ function ATSRoutes() {
   return (
     <Routes>
       <Route path="/login"           element={<AuthPage/>}/>
-      <Route path="/dashboard"       element={<Layout roles={["candidat","rh","admin"]}><Dashboard/></Layout>}/>
+
+      {/* Commun */}
+      <Route path="/dashboard"       element={<Layout roles={ALL_ROLES}><Dashboard/></Layout>}/>
+      <Route path="/profile"         element={<Layout roles={ALL_ROLES}><ProfilePage/></Layout>}/>
+
+      {/* Candidat */}
       <Route path="/offers"          element={<Layout roles={["candidat"]}><OffersPage/></Layout>}/>
       <Route path="/my-applications" element={<Layout roles={["candidat"]}><MyApplicationsPage/></Layout>}/>
       <Route path="/apply/:id"       element={<Layout roles={["candidat"]}><ApplyPage/></Layout>}/>
       <Route path="/notifications"   element={<Layout roles={["candidat"]}><NotificationsPage/></Layout>}/>
+
+      {/* RH */}
       <Route path="/manage-offers"   element={<Layout roles={["rh","admin"]}><ManageOffersPage/></Layout>}/>
       <Route path="/offers/new"      element={<Layout roles={["rh","admin"]}><OfferFormPage/></Layout>}/>
       <Route path="/offers/:id/edit" element={<Layout roles={["rh","admin"]}><OfferFormPage/></Layout>}/>
       <Route path="/applications"    element={<Layout roles={["rh","admin"]}><ApplicationsPage/></Layout>}/>
-      <Route path="/applications/:id" element={<Layout roles={["rh","admin"]}><CandidateDossierPage/></Layout>}/>
+      <Route path="/applications/:id"element={<Layout roles={["rh","admin"]}><CandidateDossierPage/></Layout>}/>
       <Route path="/settings"        element={<Layout roles={["rh","admin"]}><SettingsPage/></Layout>}/>
+
+      {/* Admin */}
       <Route path="/admin/users"     element={<Layout roles={["admin"]}><AdminUsersPage/></Layout>}/>
       <Route path="/admin/users/new" element={<Layout roles={["admin"]}><CreateUserPage/></Layout>}/>
       <Route path="/admin/offers"    element={<Layout roles={["admin"]}><AdminOffersPage/></Layout>}/>
-      <Route path="/profile"         element={<Layout roles={["candidat","rh","admin"]}><ProfilePage/></Layout>}/>
+      <Route path="/admin/stages"    element={<Layout roles={["admin","rh"]}><AdminSujetsPage/></Layout>}/>
+
+      {/* Stagiaire — F8 à F15 */}
+      <Route path="/stage/candidature" element={<Layout roles={["stagiaire"]}><CandidatureStage/></Layout>}/>
+      <Route path="/stage/sujets"      element={<Layout roles={["stagiaire"]}><SujetsDisponibles/></Layout>}/>
+      <Route path="/stage/profil"      element={<Layout roles={["stagiaire"]}><ProfilAnalyse/></Layout>}/>
+      <Route path="/stage/assistant"   element={<Layout roles={["stagiaire"]}><AssistantIA/></Layout>}/>
+      <Route path="/stage/cahier"      element={<Layout roles={["stagiaire"]}><CahierDesCharges/></Layout>}/>
+      <Route path="/stage/scrum"       element={<Layout roles={["stagiaire"]}><ScrumBoard/></Layout>}/>
+      <Route path="/stage/avancement"  element={<Layout roles={["stagiaire"]}><Avancement/></Layout>}/>
+
       <Route path="*"                element={<Navigate to="/dashboard" replace/>}/>
     </Routes>
   );
 }
 
 export default function App() {
-  // "selector" | "ats" | "formation"
-  const [app, setApp] = useState(() => {
-    return localStorage.getItem("active_app") || "selector";
-  });
+  const [app, setApp] = useState(() => localStorage.getItem("active_app") || "selector");
 
-  const select = (choice) => {
-    localStorage.setItem("active_app", choice);
-    setApp(choice);
-  };
+  const select = (choice) => { localStorage.setItem("active_app", choice); setApp(choice); };
+  const backToSelector = () => { localStorage.removeItem("active_app"); setApp("selector"); };
 
-  const backToSelector = () => {
-    localStorage.removeItem("active_app");
-    setApp("selector");
-  };
+  if (app === "selector") return <AppSelector onSelect={select}/>;
 
-  if (app === "selector") {
-    return <AppSelector onSelect={select}/>;
-  }
+  if (app === "formation") return (
+    <>
+      <Toaster position="top-right"/>
+      <FormationApp onBack={backToSelector}/>
+    </>
+  );
 
-  if (app === "formation") {
-    return (
-      <>
-        <Toaster position="top-right"/>
-        <FormationApp onBack={backToSelector}/>
-      </>
-    );
-  }
-
-  // ATS
   return (
     <BrowserRouter>
       <AuthProvider>
         <Toaster position="top-right"/>
-        {/* Back to selector button */}
         <div style={{ position:"fixed", bottom:20, right:20, zIndex:9999 }}>
           <button onClick={backToSelector}
             style={{ padding:"8px 14px", borderRadius:8, background:"#1a1a2e",
