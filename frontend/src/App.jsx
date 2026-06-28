@@ -42,7 +42,7 @@ function ATSRoutes() {
   return (
     <Routes>
       <Route path="/login"           element={<AuthPage/>}/>
-      <Route path="/dashboard"       element={<Layout roles={["candidat","rh","admin"]}><Dashboard/></Layout>}/>
+      <Route path="/dashboard"       element={<Layout roles={["candidat","rh","admin","encadrant"]}><Dashboard/></Layout>}/>
       <Route path="/offers"          element={<Layout roles={["candidat"]}><OffersPage/></Layout>}/>
       <Route path="/my-applications" element={<Layout roles={["candidat"]}><MyApplicationsPage/></Layout>}/>
       <Route path="/apply/:id"       element={<Layout roles={["candidat"]}><ApplyPage/></Layout>}/>
@@ -56,7 +56,7 @@ function ATSRoutes() {
       <Route path="/admin/users"     element={<Layout roles={["admin"]}><AdminUsersPage/></Layout>}/>
       <Route path="/admin/users/new" element={<Layout roles={["admin"]}><CreateUserPage/></Layout>}/>
       <Route path="/admin/offers"    element={<Layout roles={["admin"]}><AdminOffersPage/></Layout>}/>
-      <Route path="/profile"         element={<Layout roles={["candidat","rh","admin"]}><ProfilePage/></Layout>}/>
+      <Route path="/profile"         element={<Layout roles={["candidat","rh","admin","encadrant"]}><ProfilePage/></Layout>}/>
       <Route path="*"                element={<Navigate to="/dashboard" replace/>}/>
     </Routes>
   );

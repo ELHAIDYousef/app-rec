@@ -5,12 +5,14 @@ import { adminAPI, applicationsAPI, offresAPI } from "api";
 import { Spinner, StatusBadge } from "components/ui";
 import { formatDate } from "utils/helpers";
 import RHDashboardPage from "pages/rh/RHDashboardPage";
+import EncadrantDashboard from "pages/encadrant/EncadrantDashboard";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  if (user?.role === "candidat") return <CandidateDashboard />;
+  if (user?.role === "candidat")  return <CandidateDashboard />;
   if (user?.role === "rh")        return <RHDashboardPage />;
   if (user?.role === "admin")     return <AdminDashboard />;
+  if (user?.role === "encadrant") return <EncadrantDashboard />;
   return null;
 }
 

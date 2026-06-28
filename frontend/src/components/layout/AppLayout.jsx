@@ -23,6 +23,10 @@ const NAV = {
     { label: "Toutes les offres", path: "/admin/offers" },
     { label: "Mon profil",        path: "/profile" },
   ],
+  encadrant: [
+    { label: "Tableau de bord",   path: "/dashboard" },
+    { label: "Mon profil",        path: "/profile" },
+  ],
 };
 
 export default function AppLayout({ children }) {

@@ -17,6 +17,8 @@ class UserOut(BaseModel):
     departement:    Optional[str] = None
     cal_link:       Optional[str] = None
     cal_configured: bool          = False
+    # Encadrant uniquement
+    specialite:     Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -60,6 +62,7 @@ class UserCreate(BaseModel):
     mot_de_passe: str
     role:         UserRole = UserRole.rh
     departement:  Optional[str] = None
+    specialite:   Optional[str] = None
     @field_validator("nom")
     @classmethod
     def nom_valide(cls, v):

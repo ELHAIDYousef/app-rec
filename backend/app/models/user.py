@@ -6,9 +6,10 @@ from app.core.database import Base
 
 
 class UserRole(str, enum.Enum):
-    candidat = "candidat"
-    rh       = "rh"
-    admin    = "admin"
+    candidat  = "candidat"
+    rh        = "rh"
+    admin     = "admin"
+    encadrant = "encadrant"
 
 
 class User(Base):
@@ -63,3 +64,13 @@ class Admin(User):
     departement = Column(String(120), nullable=True)
 
     __mapper_args__ = {"polymorphic_identity": UserRole.admin}
+
+
+class Encadrant(User):
+    __tablename__ = "encadrants"
+
+    id          = Column(Integer, ForeignKey("utilisateurs.id"), primary_key=True)
+    specialite  = Column(String(120), nullable=True)
+    departement = Column(String(120), nullable=True)
+
+    __mapper_args__ = {"polymorphic_identity": UserRole.encadrant}

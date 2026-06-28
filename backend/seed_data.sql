@@ -18,6 +18,22 @@
 --   Employe 1    : EMP-TEST1
 --   Employe 2    : EMP-TEST2
 -- ============================================================
+--
+-- MIGRATION ENCADRANT (a executer UNE SEULE FOIS sur une DB existante)
+-- Si vous recreez la DB depuis zero, ignorez ce bloc — create_all le fait automatiquement.
+--
+--   ALTER TABLE `utilisateurs`
+--     MODIFY COLUMN `role` ENUM('candidat','rh','admin','encadrant') NOT NULL DEFAULT 'candidat';
+--
+--   CREATE TABLE IF NOT EXISTS `encadrants` (
+--     `id`          INT NOT NULL,
+--     `specialite`  VARCHAR(120) DEFAULT NULL,
+--     `departement` VARCHAR(120) DEFAULT NULL,
+--     PRIMARY KEY (`id`),
+--     CONSTRAINT `fk_encadrants_utilisateurs`
+--       FOREIGN KEY (`id`) REFERENCES `utilisateurs` (`id`)
+--   );
+-- ============================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
 

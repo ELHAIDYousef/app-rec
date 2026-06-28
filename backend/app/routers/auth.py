@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token, get_current_user
-from app.models.user import User, UserRole, Candidat, RessourceHumaine, Admin
+from app.models.user import User, UserRole, Candidat, RessourceHumaine, Admin, Encadrant
 from app.schemas.user import UserRegister, UserLogin, UserOut, UserUpdate, PasswordChange, TokenOut, RHSettings
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
@@ -43,7 +43,7 @@ def modifier_profil(payload: UserUpdate, db: Session = Depends(get_db),
         user.nom = payload.nom
     if payload.telephone is not None:
         user.telephone = payload.telephone
-    if payload.departement is not None and isinstance(user, (RessourceHumaine, Admin)):
+    if payload.departement is not None and isinstance(user, (RessourceHumaine, Admin, Encadrant)):
         user.departement = payload.departement
     db.commit(); db.refresh(user)
     return user

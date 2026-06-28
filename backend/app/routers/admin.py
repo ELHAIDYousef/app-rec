@@ -1,11 +1,12 @@
 import math
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import hash_password, require_role
 from app.models.application import Application
 from app.models.offer import Offre
-from app.models.user import User, UserRole, Candidat, RessourceHumaine, Admin
+from app.models.user import User, UserRole, Candidat, RessourceHumaine, Admin, Encadrant
 from app.schemas.user import UserCreate, UserOut
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -13,19 +14,26 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 @router.get("/utilisateurs")
 def lister_utilisateurs(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page: Optional[int] = Query(None, ge=1),
+    page_size: Optional[int] = Query(None, ge=1),
     db: Session = Depends(get_db),
     _=Depends(require_role("admin")),
 ):
     q = db.query(User).order_by(User.cree_le.desc())
     total = q.count()
-    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    if page is not None and page_size is not None:
+        items = q.offset((page - 1) * page_size).limit(page_size).all()
+        pages = math.ceil(total / page_size) if total > 0 else 1
+    else:
+        items = q.all()
+        page = 1
+        page_size = total or 1
+        pages = 1
     return {
         "items": [UserOut.model_validate(u).model_dump(mode="json") for u in items],
         "total": total,
         "page": page,
-        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "pages": pages,
         "page_size": page_size,
     }
 
@@ -44,6 +52,14 @@ def creer_utilisateur(payload: UserCreate, db: Session = Depends(get_db),
             mot_de_passe=hash_password(payload.mot_de_passe),
             role=UserRole.rh,
             departement=payload.departement,
+        )
+    elif payload.role == UserRole.encadrant:
+        user = Encadrant(
+            nom=payload.nom, email=payload.email,
+            mot_de_passe=hash_password(payload.mot_de_passe),
+            role=UserRole.encadrant,
+            departement=payload.departement,
+            specialite=payload.specialite,
         )
     else:  # admin
         user = Admin(
@@ -123,7 +139,7 @@ def graphiques(db: Session = Depends(get_db), user=Depends(require_role("rh", "a
 
 
 @router.get("/statistiques")
-def statistiques(db: Session = Depends(get_db), _=Depends(require_role("rh", "admin"))):
+def statistiques(db: Session = Depends(get_db), _=Depends(require_role("rh", "admin", "encadrant"))):
     from sqlalchemy import func as sqlfunc
     return {
         "total_offres":       db.query(Offre).count(),

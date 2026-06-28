@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 
 export default function CreateUserPage() {
   const navigate = useNavigate();
-  const [form,    setForm]    = useState({ nom: "", email: "", mot_de_passe: "", role: "rh", departement: "" });
+  const [form,    setForm]    = useState({ nom: "", email: "", mot_de_passe: "", role: "rh", departement: "", specialite: "" });
   const [errors,  setErrors]  = useState({});
   const [saving,  setSaving]  = useState(false);
   const [apiErr,  setApiErr]  = useState("");
@@ -39,7 +39,7 @@ export default function CreateUserPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Nouveau compte</h1>
-          <p className="page-subtitle">Créer un compte RH Manager ou Administrateur</p>
+          <p className="page-subtitle">Créer un compte RH Manager, Administrateur ou Encadrant</p>
         </div>
         <Button variant="outline" onClick={() => navigate("/admin/users")}>Retour</Button>
       </div>
@@ -69,19 +69,30 @@ export default function CreateUserPage() {
           <div className="field">
             <label className="field-label">Rôle</label>
             <select className="field-input" value={form.role}
-              onChange={e => setForm({ ...form, role: e.target.value })}>
+              onChange={e => setForm({ ...form, role: e.target.value, specialite: "" })}>
               <option value="rh">RH Manager</option>
               <option value="admin">Administrateur</option>
+              <option value="encadrant">Encadrant</option>
             </select>
           </div>
 
           <div className="field">
             <label className="field-label">Département <span style={{ color: "var(--text3)", fontWeight: 400 }}>(optionnel)</span></label>
             <input className="field-input"
-              placeholder="ex: Ressources Humaines, Direction..."
+              placeholder="ex: Ressources Humaines, Informatique..."
               value={form.departement}
               onChange={e => setForm({ ...form, departement: e.target.value })} />
           </div>
+
+          {form.role === "encadrant" && (
+            <div className="field">
+              <label className="field-label">Spécialité <span style={{ color: "var(--text3)", fontWeight: 400 }}>(optionnel)</span></label>
+              <input className="field-input"
+                placeholder="ex: Génie Logiciel, Réseaux, IA..."
+                value={form.specialite}
+                onChange={e => setForm({ ...form, specialite: e.target.value })} />
+            </div>
+          )}
 
           <div className="field">
             <label className="field-label">Mot de passe</label>
