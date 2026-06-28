@@ -11,14 +11,19 @@ from app.schemas.user import UserCreate, UserOut
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 
+ROLES_VALIDES = ["candidat", "rh", "admin", "stagiaire"]
+
+
 @router.get("/utilisateurs")
 def lister_utilisateurs(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=200),
     db: Session = Depends(get_db),
     _=Depends(require_role("admin")),
 ):
-    q = db.query(User).order_by(User.cree_le.desc())
+    q = (db.query(User)
+           .filter(User.role.in_(ROLES_VALIDES))
+           .order_by(User.cree_le.desc()))
     total = q.count()
     items = q.offset((page - 1) * page_size).limit(page_size).all()
     return {
@@ -35,7 +40,7 @@ def creer_utilisateur(payload: UserCreate, db: Session = Depends(get_db),
                       _=Depends(require_role("admin"))):
     if payload.role == UserRole.candidat:
         raise HTTPException(400, "Les candidats s'inscrivent eux-mêmes via la page d'inscription")
-    if db.query(User).filter(User.email == payload.email).first():
+    if db.query(User.id).filter(User.email == payload.email).scalar():
         raise HTTPException(400, "Cet email est déjà utilisé")
 
     if payload.role == UserRole.rh:
