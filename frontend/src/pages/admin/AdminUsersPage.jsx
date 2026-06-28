@@ -30,7 +30,7 @@ export default function AdminUsersPage() {
   const candPag  = usePaginated(candidats);
 
   const charger = () =>
-    adminAPI.listerUtilisateurs({ page: 1, page_size: 200 })
+    adminAPI.listerUtilisateurs({ page: 1, page_size: 100 })
       .then(r => setUsers(r.data.items))
       .finally(() => setLoading(false));
 
@@ -46,6 +46,9 @@ export default function AdminUsersPage() {
     try { await adminAPI.supprimerUtilisateur(id); toast.success("Compte supprimé"); charger(); }
     catch (err) { toast.error(getApiError(err)); }
   };
+
+  const stagiaires = users.filter(u => u.role === "stagiaire");
+  const stagPag    = usePaginated(stagiaires);
 
   if (loading) return <div className="loading-page"><Spinner size={28} /></div>;
 
@@ -139,6 +142,47 @@ export default function AdminUsersPage() {
               </table>
             </div>
             <Pagination page={candPag.page} pages={candPag.pages} total={candPag.total} onChange={candPag.setPage} />
+          </>
+        )
+      }
+
+      <p className="section-title" style={{ marginTop: 24 }}>Stagiaires ({stagiaires.length})</p>
+      {stagiaires.length === 0
+        ? <p style={{ fontSize: 13, color: "var(--text3)" }}>Aucun stagiaire inscrit.</p>
+        : (
+          <>
+            <div className="table-wrap" style={{ marginBottom: 8 }}>
+              <table>
+                <thead>
+                  <tr><th>Nom</th><th>Email</th><th>Université</th><th>Niveau</th><th>Inscrit le</th><th>Statut</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {stagPag.items.map(u => (
+                    <tr key={u.id}>
+                      <td style={{ fontWeight: 500 }}>{u.nom}</td>
+                      <td style={{ color: "var(--text2)", fontSize: 13 }}>{u.email}</td>
+                      <td style={{ color: "var(--text2)", fontSize: 13 }}>{u.universite || "—"}</td>
+                      <td style={{ color: "var(--text2)", fontSize: 13 }}>{u.niveau || "—"}</td>
+                      <td style={{ color: "var(--text2)", fontSize: 13 }}>{formatDate(u.cree_le)}</td>
+                      <td>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: u.is_active ? "var(--green)" : "var(--red)" }}>
+                          {u.is_active ? "Actif" : "Inactif"}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <Button size="sm" variant={u.is_active ? "danger" : "outline"} onClick={() => basculer(u.id)}>
+                            {u.is_active ? "Désactiver" : "Activer"}
+                          </Button>
+                          <Button size="sm" variant="danger" onClick={() => supprimerUser(u.id)}>Supprimer</Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={stagPag.page} pages={stagPag.pages} total={stagPag.total} onChange={stagPag.setPage} />
           </>
         )
       }

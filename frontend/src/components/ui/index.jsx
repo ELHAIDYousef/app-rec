@@ -62,7 +62,7 @@ export function StatusBadge({ status }) {
 }
 
 // ── Role badge ────────────────────────────────────────────
-const ROLE_LABELS = { candidate: "Candidat", rh: "RH Manager", admin: "Admin" };
+const ROLE_LABELS = { candidat: "Candidat", rh: "RH Manager", admin: "Admin", stagiaire: "Stagiaire" };
 export function RoleBadge({ role }) {
   return <span className={`badge badge-${role}`}>{ROLE_LABELS[role] || role}</span>;
 }

@@ -4,25 +4,26 @@ from datetime import datetime
 from app.models.user import UserRole
 import re
 
+
 class UserOut(BaseModel):
     id:          int
     nom:         str
     email:       str
-    role:        UserRole
+    role:        str
     is_active:   bool
     cree_le:     Optional[datetime] = None
-    # Candidat uniquement
     telephone:   Optional[str] = None
-    # RH uniquement
+    # RH
     departement:    Optional[str] = None
     cal_link:       Optional[str] = None
     cal_configured: bool          = False
-    # Encadrant uniquement
-    specialite:     Optional[str] = None
+    # Encadrant / Stagiaire
+    specialite:  Optional[str] = None
+    # Stagiaire
+    universite:  Optional[str] = None
+    niveau:      Optional[str] = None
 
     model_config = {"from_attributes": True}
-
-
 
 
 class UserRegister(BaseModel):
@@ -82,6 +83,9 @@ class UserUpdate(BaseModel):
     nom:         Optional[str] = None
     telephone:   Optional[str] = None
     departement: Optional[str] = None
+    universite:  Optional[str] = None
+    niveau:      Optional[str] = None
+    specialite:  Optional[str] = None
 
     @field_validator("nom")
     @classmethod
