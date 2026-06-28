@@ -202,7 +202,7 @@ async def postuler(
 @router.get("/mes-candidatures")
 def mes_candidatures(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=200),
     db: Session = Depends(get_db),
     user: User = Depends(require_role("candidat")),
 ):

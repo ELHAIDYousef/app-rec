@@ -24,7 +24,7 @@ def _enrichir(offre: Offre, db: Session) -> OffreOut:
 def lister_offres(
     statut: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=200),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
