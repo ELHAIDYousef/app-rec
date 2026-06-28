@@ -64,6 +64,7 @@ class UserCreate(BaseModel):
     role:         UserRole = UserRole.rh
     departement:  Optional[str] = None
     specialite:   Optional[str] = None
+
     @field_validator("nom")
     @classmethod
     def nom_valide(cls, v):

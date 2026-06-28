@@ -1,5 +1,6 @@
 """F9 – Assistant IA multicanal (chat + email + WhatsApp + vocal)"""
 import math
+import asyncio
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
@@ -284,6 +285,40 @@ def statut_email(user=Depends(require_role("admin", "rh", "stagiaire"))):
     }
 
 
+@router.get("/test-email")
+def test_email(user=Depends(require_role("admin", "rh"))):
+    """Diagnostique la connexion SMTP et IMAP Gmail."""
+    import smtplib, imaplib
+    from app.core.config import get_settings
+    s = get_settings()
+    rapport = {"smtp": None, "imap": None, "erreur_smtp": None, "erreur_imap": None}
+
+    # Test SMTP
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as srv:
+            srv.ehlo()
+            srv.starttls()
+            srv.ehlo()
+            srv.login(s.MAIL_USER, s.MAIL_PASS)
+        rapport["smtp"] = "OK"
+    except Exception as e:
+        rapport["smtp"] = "ERREUR"
+        rapport["erreur_smtp"] = str(e)
+
+    # Test IMAP
+    try:
+        mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+        mail.login(s.MAIL_USER, s.MAIL_PASS.replace(" ", ""))
+        _, counts = mail.select("INBOX")
+        rapport["imap"] = f"OK — {counts[0].decode()} messages"
+        mail.logout()
+    except Exception as e:
+        rapport["imap"] = "ERREUR"
+        rapport["erreur_imap"] = str(e)
+
+    return rapport
+
+
 @router.post("/email-auto/{cid}")
 def email_automatique(
     cid: int,
@@ -359,40 +394,57 @@ async def transcrire_vocal(
     if not audio_bytes:
         raise HTTPException(400, "Fichier audio vide")
 
-    print(f"[VOCAL] Audio reçu : {len(audio_bytes)} octets, filename={audio.filename}, content_type={audio.content_type}")
+    # Déterminer le nom de fichier et content-type pour Groq
+    original_filename = audio.filename or "audio.webm"
+    content_type = audio.content_type or "audio/webm"
+    # Groq détecte le format via l'extension — s'assurer qu'elle est correcte
+    ext_map = {
+        "audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "mp4",
+        "audio/mpeg": "mp3",  "audio/wav": "wav", "audio/x-wav": "wav",
+        "audio/mp3": "mp3",
+    }
+    ext = ext_map.get(content_type.split(";")[0].strip(), "webm")
+    groq_filename = f"audio.{ext}"
+    groq_content_type = content_type.split(";")[0].strip() or "audio/webm"
 
-    # Transcription avec Groq Whisper (AsyncClient — compatible async def)
-    # Essaie whisper-large-v3-turbo d'abord (plus rapide, mêmes limites),
-    # puis whisper-large-v3 en fallback
+    print(f"[VOCAL] Audio reçu : {len(audio_bytes)} octets, filename={original_filename}, content_type={content_type} → envoi Groq comme {groq_filename}")
+
+    # Transcription avec Groq Whisper — essaie turbo puis standard, avec délai entre les tentatives
     transcription = None
-    for model in ("whisper-large-v3-turbo", "whisper-large-v3"):
+    last_error = "inconnu"
+    for idx, model in enumerate(("whisper-large-v3-turbo", "whisper-large-v3")):
+        if idx > 0:
+            await asyncio.sleep(2)  # laisser le temps au rate-limit de se réinitialiser
         try:
             async with httpx.AsyncClient(timeout=60) as client:
                 r = await client.post(
                     "https://api.groq.com/openai/v1/audio/transcriptions",
                     headers={"Authorization": f"Bearer {cfg.GROQ_API_KEY}"},
                     files={
-                        "file":     ("audio.webm", audio_bytes, "audio/webm"),
+                        "file":     (groq_filename, audio_bytes, groq_content_type),
                         "model":    (None, model),
                         "language": (None, "fr"),
                     },
                 )
                 print(f"[VOCAL] Whisper({model}) status={r.status_code} body={r.text[:300]}")
                 if r.status_code == 429:
+                    last_error = f"rate-limit sur {model}"
                     print(f"[VOCAL] Rate limit sur {model}, tentative modèle suivant...")
                     continue
                 r.raise_for_status()
                 transcription = r.json().get("text", "").strip()
                 break
         except httpx.HTTPStatusError as e:
+            last_error = f"HTTP {e.response.status_code} sur {model}"
             print(f"[VOCAL] Erreur HTTP {e.response.status_code} sur {model}: {e.response.text}")
             continue
         except Exception as e:
+            last_error = str(e)
             print(f"[VOCAL] Erreur inattendue sur {model}: {e}")
             continue
 
     if transcription is None:
-        raise HTTPException(503, "Service de transcription temporairement indisponible — réessayez dans 30 secondes")
+        raise HTTPException(503, f"Service de transcription indisponible ({last_error}) — réessayez dans 30 secondes")
 
     if not transcription:
         return {"transcription": "", "reponse": "Je n'ai pas bien entendu, pouvez-vous répéter ?"}

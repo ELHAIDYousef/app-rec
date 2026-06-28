@@ -10,7 +10,7 @@ import StagiaireDashboard  from "pages/stagiaire/StagiaireDashboard";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  if (user?.role === "candidat")  return <CandidateDashboard />;
+  if (user?.role === "candidat")  return <CandidatDashboard />;
   if (user?.role === "rh")        return <RHDashboardPage />;
   if (user?.role === "admin")     return <AdminDashboard />;
   if (user?.role === "encadrant") return <EncadrantDashboard />;
@@ -29,7 +29,7 @@ function StatCard({ num, label, color }) {
 }
 
 // ── Dashboard Candidat ────────────────────────────────────
-function CandidateDashboard() {
+function CandidatDashboard() {
   const { user }  = useAuth();
   const navigate  = useNavigate();
   const [apps,    setApps]    = useState([]);

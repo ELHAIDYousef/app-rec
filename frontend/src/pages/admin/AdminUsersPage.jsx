@@ -21,14 +21,6 @@ export default function AdminUsersPage() {
   const [users,   setUsers]    = useState([]);
   const [loading, setLoading]  = useState(true);
 
-  // Derived lists computed before hooks so usePaginated is always called
-  const staff     = users.filter(u => u.role === "rh" || u.role === "admin" || u.role === "encadrant");
-  const candidats = users.filter(u => u.role === "candidat");
-
-  // All hook calls must come before any conditional return (Rules of Hooks)
-  const staffPag = usePaginated(staff);
-  const candPag  = usePaginated(candidats);
-
   const charger = () =>
     adminAPI.listerUtilisateurs({ page: 1, page_size: 100 })
       .then(r => setUsers(r.data.items))
@@ -47,8 +39,13 @@ export default function AdminUsersPage() {
     catch (err) { toast.error(getApiError(err)); }
   };
 
+  const staff      = users.filter(u => u.role === "rh" || u.role === "admin" || u.role === "encadrant");
+  const candidats  = users.filter(u => u.role === "candidat");
   const stagiaires = users.filter(u => u.role === "stagiaire");
-  const stagPag    = usePaginated(stagiaires);
+
+  const staffPag    = usePaginated(staff);
+  const candPag     = usePaginated(candidats);
+  const stagPag     = usePaginated(stagiaires);
 
   if (loading) return <div className="loading-page"><Spinner size={28} /></div>;
 

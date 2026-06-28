@@ -18,7 +18,7 @@ class SujetStage(Base):
     cree_par      = Column(Integer, ForeignKey("utilisateurs.id", ondelete="SET NULL"), nullable=True)
     cree_le       = Column(DateTime(timezone=True), server_default=func.now())
 
-    candidatures  = relationship("CandidatureStage", back_populates="sujet")
+    candidatures   = relationship("CandidatureStage", back_populates="sujet")
     encadrant_user = relationship("User", foreign_keys=[encadrant_id])
 
 
