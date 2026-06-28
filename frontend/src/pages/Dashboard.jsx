@@ -4,13 +4,15 @@ import { useAuth } from "context/AuthContext";
 import { adminAPI, applicationsAPI, offresAPI } from "api";
 import { Spinner, StatusBadge } from "components/ui";
 import { formatDate } from "utils/helpers";
-import RHDashboardPage from "pages/rh/RHDashboardPage";
+import RHDashboardPage    from "pages/rh/RHDashboardPage";
+import StagiaireDashboard from "pages/stagiaire/StagiaireDashboard";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  if (user?.role === "candidat") return <CandidateDashboard />;
+  if (user?.role === "candidat")  return <CandidateDashboard />;
   if (user?.role === "rh")        return <RHDashboardPage />;
   if (user?.role === "admin")     return <AdminDashboard />;
+  if (user?.role === "stagiaire") return <StagiaireDashboard />;
   return null;
 }
 
