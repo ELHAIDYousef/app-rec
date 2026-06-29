@@ -3,7 +3,8 @@ import math, os
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Literal
+from pydantic import BaseModel
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import require_role
@@ -13,6 +14,12 @@ from app.models.user import User
 
 router = APIRouter(prefix="/api/stage/candidatures", tags=["Stage – F8 Candidatures"])
 cfg = get_settings()
+
+
+class CandidatureStageStatutUpdate(BaseModel):
+    statut:     Optional[Literal["en_attente", "acceptee", "refusee"]] = None
+    message_ia: Optional[str] = None
+    sujet_id:   Optional[int] = None
 
 UPLOAD_DIR = "uploads/stage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -139,22 +146,21 @@ async def modifier(
 @router.patch("/{cid}/statut")
 def changer_statut(
     cid: int,
-    payload: dict,
+    payload: CandidatureStageStatutUpdate,
     db: Session = Depends(get_db),
     user=Depends(require_role("admin", "rh")),
 ):
     c = db.get(CandidatureStage, cid)
     if not c: raise HTTPException(404)
-    if "statut" in payload:
-        c.statut = payload["statut"]
-    if "message_ia" in payload:
-        c.message_ia = payload["message_ia"]
-    if "sujet_id" in payload:
-        c.sujet_id = payload["sujet_id"]
-        if payload["sujet_id"]:
-            sujet = db.get(SujetStage, payload["sujet_id"])
-            if sujet and sujet.statut == "disponible":
-                sujet.statut = "affecte"
+    if payload.statut is not None:
+        c.statut = payload.statut
+    if payload.message_ia is not None:
+        c.message_ia = payload.message_ia
+    if payload.sujet_id is not None:
+        c.sujet_id = payload.sujet_id
+        sujet = db.get(SujetStage, payload.sujet_id)
+        if sujet and sujet.statut == "disponible":
+            sujet.statut = "affecte"
     db.commit(); db.refresh(c)
     return _ser(c)
 

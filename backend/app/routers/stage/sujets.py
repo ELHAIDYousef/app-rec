@@ -2,7 +2,7 @@
 import math
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel
 from app.core.database import get_db
 from app.core.security import require_role, get_current_user
@@ -18,6 +18,10 @@ class SujetIn(BaseModel):
     niveau_requis: Optional[str] = None
     encadrant:     Optional[str] = None
     encadrant_id:  Optional[int] = None
+
+
+class SujetStatutUpdate(BaseModel):
+    statut: Literal["disponible", "reserve", "affecte", "termine"]
 
 
 def _ser(s: SujetStage) -> dict:
@@ -71,10 +75,10 @@ def modifier(sid: int, payload: SujetIn, db: Session = Depends(get_db), user=Dep
 
 
 @router.patch("/{sid}/statut")
-def changer_statut(sid: int, payload: dict, db: Session = Depends(get_db), user=Depends(require_role("admin", "rh"))):
+def changer_statut(sid: int, payload: SujetStatutUpdate, db: Session = Depends(get_db), user=Depends(require_role("admin", "rh"))):
     s = db.get(SujetStage, sid)
     if not s: raise HTTPException(404)
-    s.statut = payload.get("statut", s.statut)
+    s.statut = payload.statut
     db.commit(); db.refresh(s)
     return _ser(s)
 

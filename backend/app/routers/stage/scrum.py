@@ -3,8 +3,8 @@ import math
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, model_validator
+from typing import Optional, Literal
 from app.core.database import get_db
 from app.core.security import require_role
 from app.core.groq_helper import appeler_groq_json
@@ -88,9 +88,20 @@ def sprints_admin(cid: int, db: Session = Depends(get_db), user=Depends(require_
 
 class SprintIn(BaseModel):
     titre:      str
-    objectif:   Optional[str] = None
-    date_debut: Optional[str] = None
-    date_fin:   Optional[str] = None
+    objectif:   Optional[str]  = None
+    date_debut: Optional[date] = None
+    date_fin:   Optional[date] = None
+
+    @model_validator(mode="after")
+    def verifier_dates(self):
+        if self.date_debut is not None and self.date_fin is not None:
+            if self.date_fin < self.date_debut:
+                raise ValueError("La date de fin doit être postérieure à la date de début")
+        return self
+
+
+class SprintStatutUpdate(BaseModel):
+    statut: Literal["planifie", "en_cours", "termine"]
 
 
 @router.post("/sprints", status_code=201)
@@ -106,15 +117,15 @@ def creer_sprint(payload: SprintIn, db: Session = Depends(get_db), user=Depends(
         numero         = nb + 1,
         titre          = payload.titre,
         objectif       = payload.objectif,
-        date_debut     = date.fromisoformat(payload.date_debut) if payload.date_debut else None,
-        date_fin       = date.fromisoformat(payload.date_fin)   if payload.date_fin   else None,
+        date_debut     = payload.date_debut,
+        date_fin       = payload.date_fin,
     )
     db.add(sprint); db.commit(); db.refresh(sprint)
     return _ser_sprint(sprint)
 
 
 @router.patch("/sprints/{sid}/statut")
-def changer_statut_sprint(sid: int, payload: dict, db: Session = Depends(get_db), user=Depends(require_role("stagiaire", "admin", "rh"))):
+def changer_statut_sprint(sid: int, payload: SprintStatutUpdate, db: Session = Depends(get_db), user=Depends(require_role("stagiaire", "admin", "rh"))):
     s = db.get(Sprint, sid)
     if not s: raise HTTPException(404)
     if user.role == "stagiaire":
@@ -124,7 +135,7 @@ def changer_statut_sprint(sid: int, payload: dict, db: Session = Depends(get_db)
         ).first()
         if not cand:
             raise HTTPException(403, "Accès refusé")
-    s.statut = payload.get("statut", s.statut)
+    s.statut = payload.statut
     db.commit(); db.refresh(s)
     return _ser_sprint(s)
 
@@ -161,6 +172,14 @@ class TacheIn(BaseModel):
     priorite:    Optional[int] = 1
 
 
+class TacheUpdate(BaseModel):
+    titre:       Optional[str]                                                          = None
+    description: Optional[str]                                                          = None
+    statut:      Optional[Literal["a_faire", "en_cours", "en_validation", "termine"]]  = None
+    priorite:    Optional[int]                                                          = None
+    ordre:       Optional[int]                                                          = None
+
+
 @router.post("/taches", status_code=201)
 def creer_tache(payload: TacheIn, db: Session = Depends(get_db), user=Depends(require_role("stagiaire", "admin", "rh"))):
     if user.role == "stagiaire":
@@ -188,7 +207,7 @@ def creer_tache(payload: TacheIn, db: Session = Depends(get_db), user=Depends(re
 
 
 @router.patch("/taches/{tid}")
-def modifier_tache(tid: int, payload: dict, db: Session = Depends(get_db), user=Depends(require_role("stagiaire", "admin", "rh"))):
+def modifier_tache(tid: int, payload: TacheUpdate, db: Session = Depends(get_db), user=Depends(require_role("stagiaire", "admin", "rh"))):
     t = db.get(Tache, tid)
     if not t: raise HTTPException(404)
     if user.role == "stagiaire":
@@ -199,9 +218,8 @@ def modifier_tache(tid: int, payload: dict, db: Session = Depends(get_db), user=
         ).first() if sprint else None
         if not cand:
             raise HTTPException(403, "Accès refusé")
-    for k in ("titre", "description", "statut", "priorite", "ordre"):
-        if k in payload:
-            setattr(t, k, payload[k])
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(t, k, v)
     db.commit(); db.refresh(t)
     return _ser_tache(t)
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
+import re
 from typing import Optional
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token, get_current_user
@@ -17,6 +18,17 @@ class StagiaireRegister(BaseModel):
     universite:   Optional[str] = None
     niveau:       Optional[str] = None
     specialite:   Optional[str] = None
+
+    @field_validator("mot_de_passe")
+    @classmethod
+    def mot_de_passe_valide(cls, v):
+        if len(v) < 8:
+            raise ValueError("Le mot de passe doit contenir au moins 8 caractères")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Le mot de passe doit contenir au moins une majuscule")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Le mot de passe doit contenir au moins un chiffre")
+        return v
 
 
 @router.post("/inscription", response_model=TokenOut, status_code=201)

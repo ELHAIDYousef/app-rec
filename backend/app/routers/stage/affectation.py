@@ -1,12 +1,17 @@
 """F12 – Affectation automatique des sujets via IA"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from app.core.database import get_db
 from app.core.security import require_role
 from app.core.groq_helper import appeler_groq_json
 from app.models.stage import CandidatureStage, SujetStage, ProfilAnalyse
 
 router = APIRouter(prefix="/api/stage/affectation", tags=["Stage – F12 Affectation"])
+
+
+class AffectationIn(BaseModel):
+    sujet_id: int
 
 
 @router.post("/matcher/{cid}")
@@ -93,16 +98,14 @@ Retourne ce JSON exact :
 @router.post("/affecter/{cid}")
 def affecter(
     cid: int,
-    payload: dict,
+    payload: AffectationIn,
     db: Session = Depends(get_db),
     user=Depends(require_role("admin", "rh")),
 ):
     cand = db.get(CandidatureStage, cid)
     if not cand: raise HTTPException(404)
 
-    sujet_id = payload.get("sujet_id")
-    if not sujet_id: raise HTTPException(400, "sujet_id requis")
-
+    sujet_id = payload.sujet_id
     sujet = db.get(SujetStage, sujet_id)
     if not sujet: raise HTTPException(404, "Sujet introuvable")
     if sujet.statut not in ("disponible", "reserve"):
