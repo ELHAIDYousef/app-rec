@@ -11,6 +11,7 @@ from app.routers.formation.schemas import (
 )
 from app.routers.formation.formation_auth import require_formateur, require_admin_formateur, generer_code, ROLE_FORMATEUR
 from app.routers.formation.groq_service import generer_questions
+from app.core.upload_helper import valider_et_sauvegarder, ALLOWED_PDF
 import fitz
 
 router = APIRouter(prefix="/api/formation/formateur", tags=["Formation — Formateur"])
@@ -118,21 +119,21 @@ async def creer_formation(
     formateur: Employe              = Depends(require_formateur),
 ):
     texte = contenu or ""
+    nom_pdf = None
 
     if fichier:
-        data = await fichier.read()
-        path = os.path.join(FORMATION_DIR, f"form_{fichier.filename}")
-        with open(path, "wb") as fp:
-            fp.write(data)
-        doc   = fitz.open(stream=data, filetype="pdf")
+        nom_pdf = await valider_et_sauvegarder(fichier, FORMATION_DIR, ALLOWED_PDF, get_settings().MAX_UPLOAD_MB)
+        chemin = os.path.join(FORMATION_DIR, nom_pdf)
+        doc   = fitz.open(chemin)
         texte = "\n".join(page.get_text() for page in doc)
+        doc.close()
 
     if not texte.strip():
         raise HTTPException(400, "Contenu ou PDF requis")
 
     formation = Formation(
         titre=titre.strip(), contenu=texte,
-        pdf_fichier=fichier.filename if fichier else None,
+        pdf_fichier=nom_pdf,
         cree_par=formateur.id,
     )
     db.add(formation); db.commit(); db.refresh(formation)

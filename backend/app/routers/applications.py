@@ -1,4 +1,4 @@
-import os, uuid, logging, math
+import os, logging, math
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, BackgroundTasks
 from fastapi.responses import FileResponse
@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user, require_role
 from app.core.email import email_reception, email_statut_change
 from app.core.ats import analyze_cv
+from app.core.upload_helper import valider_et_sauvegarder, ALLOWED_PDF
 from app.models.application import Application, StatutCandidature
 from app.models.notification import Notification
 from app.models.offer import Offre
@@ -180,11 +181,7 @@ async def postuler(
 
     cv_fichier = None
     if cv:
-        if cv.content_type != "application/pdf": raise HTTPException(400, "Le CV doit être un PDF")
-        content = await cv.read()
-        if len(content) > cfg.MAX_UPLOAD_MB * 1024 * 1024: raise HTTPException(400, f"CV trop volumineux (max {cfg.MAX_UPLOAD_MB} Mo)")
-        cv_fichier = f"{uuid.uuid4().hex}_{cv.filename}"
-        with open(os.path.join(CV_DIR, cv_fichier), "wb") as f: f.write(content)
+        cv_fichier = await valider_et_sauvegarder(cv, CV_DIR, ALLOWED_PDF, cfg.MAX_UPLOAD_MB)
 
     c = Application(offre_id=offre_id, user_id=user.id, motivation=motivation.strip(), cv_fichier=cv_fichier)
     db.add(c); db.flush()

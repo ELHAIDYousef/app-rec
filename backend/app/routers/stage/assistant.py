@@ -1,5 +1,6 @@
 """F9 – Assistant IA multicanal (chat + email + WhatsApp + vocal)"""
 import math
+import uuid
 import asyncio
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
@@ -9,6 +10,7 @@ from typing import Optional
 from app.core.database import get_db
 from app.core.security import require_role
 from app.core.groq_helper import appeler_groq, appeler_groq_json
+from app.core.upload_helper import ALLOWED_AUDIO
 from app.models.stage import MessageAssistant, CandidatureStage, ProfilAnalyse
 from app.models.user import User
 
@@ -390,24 +392,29 @@ async def transcrire_vocal(
     if not cfg.GROQ_API_KEY:
         raise HTTPException(400, "Clé GROQ_API_KEY non configurée")
 
+    # MIME type check
+    content_type = (audio.content_type or "").split(";")[0].strip()
+    if content_type not in ALLOWED_AUDIO:
+        raise HTTPException(400, f"Type de fichier non autorisé : {audio.content_type}")
+
     audio_bytes = await audio.read()
     if not audio_bytes:
         raise HTTPException(400, "Fichier audio vide")
 
-    # Déterminer le nom de fichier et content-type pour Groq
-    original_filename = audio.filename or "audio.webm"
-    content_type = audio.content_type or "audio/webm"
-    # Groq détecte le format via l'extension — s'assurer qu'elle est correcte
+    # Size check: 25 MB (Whisper limit)
+    if len(audio_bytes) > 25 * 1024 * 1024:
+        raise HTTPException(400, "Fichier audio trop volumineux (max 25 Mo)")
+
+    # Secure UUID filename for Groq
     ext_map = {
         "audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "mp4",
         "audio/mpeg": "mp3",  "audio/wav": "wav", "audio/x-wav": "wav",
-        "audio/mp3": "mp3",
     }
-    ext = ext_map.get(content_type.split(";")[0].strip(), "webm")
-    groq_filename = f"audio.{ext}"
-    groq_content_type = content_type.split(";")[0].strip() or "audio/webm"
+    ext = ext_map.get(content_type, "webm")
+    groq_filename = f"{uuid.uuid4()}.{ext}"
+    groq_content_type = content_type or "audio/webm"
 
-    print(f"[VOCAL] Audio reçu : {len(audio_bytes)} octets, filename={original_filename}, content_type={content_type} → envoi Groq comme {groq_filename}")
+    print(f"[VOCAL] Audio reçu : {len(audio_bytes)} octets, filename={audio.filename}, content_type={audio.content_type} → envoi Groq comme {groq_filename}")
 
     # Transcription avec Groq Whisper — essaie turbo puis standard, avec délai entre les tentatives
     transcription = None

@@ -1,15 +1,18 @@
 """F8 – Gestion des candidatures de stage"""
-import math, os, shutil
+import math, os
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import Optional
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import require_role
+from app.core.upload_helper import valider_et_sauvegarder, ALLOWED_PDF
 from app.models.stage import CandidatureStage, SujetStage
 from app.models.user import User
 
 router = APIRouter(prefix="/api/stage/candidatures", tags=["Stage – F8 Candidatures"])
+cfg = get_settings()
 
 UPLOAD_DIR = "uploads/stage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -34,7 +37,7 @@ def _ser(c: CandidatureStage) -> dict:
 
 # ── Stagiaire : soumettre sa candidature ─────────────────────
 @router.post("", status_code=201)
-def soumettre(
+async def soumettre(
     motivation: str = Form(...),
     cv: Optional[UploadFile] = File(None),
     convention: Optional[UploadFile] = File(None),
@@ -50,16 +53,12 @@ def soumettre(
 
     cand = CandidatureStage(stagiaire_id=user.id, motivation=motivation)
 
-    for fichier, prefix in [(cv, "cv"), (convention, "conv")]:
-        if fichier and fichier.filename:
-            ext = fichier.filename.rsplit(".", 1)[-1]
-            path = f"{UPLOAD_DIR}/{prefix}_{user.id}.{ext}"
-            with open(path, "wb") as f:
-                shutil.copyfileobj(fichier.file, f)
-            if prefix == "cv":
-                cand.cv_fichier = path
-            else:
-                cand.convention_fichier = path
+    if cv and cv.filename:
+        nom = await valider_et_sauvegarder(cv, UPLOAD_DIR, ALLOWED_PDF, cfg.MAX_UPLOAD_MB)
+        cand.cv_fichier = os.path.join(UPLOAD_DIR, nom)
+    if convention and convention.filename:
+        nom = await valider_et_sauvegarder(convention, UPLOAD_DIR, ALLOWED_PDF, cfg.MAX_UPLOAD_MB)
+        cand.convention_fichier = os.path.join(UPLOAD_DIR, nom)
 
     db.add(cand); db.commit(); db.refresh(cand)
     return _ser(cand)
@@ -109,7 +108,7 @@ def obtenir(cid: int, db: Session = Depends(get_db), user=Depends(require_role("
 
 # ── Stagiaire : modifier sa candidature ──────────────────────
 @router.patch("/{cid}/modifier")
-def modifier(
+async def modifier(
     cid: int,
     motivation: Optional[str] = Form(None),
     cv: Optional[UploadFile] = File(None),
@@ -126,13 +125,12 @@ def modifier(
     if motivation and motivation.strip():
         c.motivation = motivation.strip()
 
-    for fichier, prefix, attr in [(cv, "cv", "cv_fichier"), (convention, "conv", "convention_fichier")]:
-        if fichier and fichier.filename:
-            ext = fichier.filename.rsplit(".", 1)[-1]
-            path = f"{UPLOAD_DIR}/{prefix}_{user.id}.{ext}"
-            with open(path, "wb") as f:
-                shutil.copyfileobj(fichier.file, f)
-            setattr(c, attr, path)
+    if cv and cv.filename:
+        nom = await valider_et_sauvegarder(cv, UPLOAD_DIR, ALLOWED_PDF, cfg.MAX_UPLOAD_MB)
+        c.cv_fichier = os.path.join(UPLOAD_DIR, nom)
+    if convention and convention.filename:
+        nom = await valider_et_sauvegarder(convention, UPLOAD_DIR, ALLOWED_PDF, cfg.MAX_UPLOAD_MB)
+        c.convention_fichier = os.path.join(UPLOAD_DIR, nom)
 
     db.commit(); db.refresh(c)
     return _ser(c)
