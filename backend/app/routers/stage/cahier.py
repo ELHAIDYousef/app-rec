@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import require_role
 from app.core.groq_helper import appeler_groq_json
-from app.models.stage import CandidatureStage, CahierDesCharges, ProfilAnalyse
+from app.models.stage import CandidatureStage, CahierDesCharges, ProfilAnalyse, SujetStage
 
 router = APIRouter(prefix="/api/stage/cahier", tags=["Stage – F13 Cahier des charges"])
 
@@ -283,6 +283,18 @@ def _nom(cahier: CahierDesCharges) -> str:
     return titre.replace(" ", "_")[:40]
 
 
+# ── Vérification encadrant ────────────────────────────────────
+
+def _verifier_encadrant(cahier: CahierDesCharges, user, db: Session):
+    if user.role == "encadrant":
+        sujet = db.query(SujetStage).filter(
+            SujetStage.id == cahier.sujet_id,
+            SujetStage.encadrant_id == user.id
+        ).first()
+        if not sujet:
+            raise HTTPException(403, "Ce stagiaire n'est pas sous votre supervision")
+
+
 # ── Endpoints CRUD ────────────────────────────────────────────
 
 @router.post("/generer/{cid}")
@@ -402,6 +414,7 @@ def mon_cahier_word(db: Session = Depends(get_db), user=Depends(require_role("st
 def cahier_pdf(id: int, db: Session = Depends(get_db), user=Depends(require_role("admin", "rh", "encadrant"))):
     cahier = db.get(CahierDesCharges, id)
     if not cahier: raise HTTPException(404)
+    _verifier_encadrant(cahier, user, db)
     buf = _build_pdf(cahier)
     return StreamingResponse(
         buf, media_type="application/pdf",
@@ -413,6 +426,7 @@ def cahier_pdf(id: int, db: Session = Depends(get_db), user=Depends(require_role
 def cahier_word(id: int, db: Session = Depends(get_db), user=Depends(require_role("admin", "rh", "encadrant"))):
     cahier = db.get(CahierDesCharges, id)
     if not cahier: raise HTTPException(404)
+    _verifier_encadrant(cahier, user, db)
     buf = _build_word(cahier)
     return StreamingResponse(
         buf,
@@ -427,6 +441,7 @@ def cahier_word(id: int, db: Session = Depends(get_db), user=Depends(require_rol
 def obtenir(id: int, db: Session = Depends(get_db), user=Depends(require_role("admin", "rh", "encadrant"))):
     c = db.get(CahierDesCharges, id)
     if not c: raise HTTPException(404)
+    _verifier_encadrant(c, user, db)
     return _ser(c)
 
 
@@ -434,6 +449,7 @@ def obtenir(id: int, db: Session = Depends(get_db), user=Depends(require_role("a
 def valider(id: int, db: Session = Depends(get_db), user=Depends(require_role("admin", "rh", "encadrant"))):
     c = db.get(CahierDesCharges, id)
     if not c: raise HTTPException(404)
+    _verifier_encadrant(c, user, db)
     c.statut = "valide"
     db.commit(); db.refresh(c)
     return _ser(c)

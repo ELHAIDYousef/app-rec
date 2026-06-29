@@ -75,6 +75,13 @@ def mes_sprints(db: Session = Depends(get_db), user=Depends(require_role("stagia
 def sprints_admin(cid: int, db: Session = Depends(get_db), user=Depends(require_role("admin", "rh", "encadrant"))):
     c = db.get(CandidatureStage, cid)
     if not c: raise HTTPException(404)
+    if user.role == "encadrant":
+        sujet = db.query(SujetStage).filter(
+            SujetStage.id == c.sujet_id,
+            SujetStage.encadrant_id == user.id
+        ).first()
+        if not sujet:
+            raise HTTPException(403, "Ce stagiaire n'est pas sous votre supervision")
     sprints = db.query(Sprint).filter(Sprint.candidature_id == cid).order_by(Sprint.numero).all()
     return [_ser_sprint(s) for s in sprints]
 
@@ -110,6 +117,13 @@ def creer_sprint(payload: SprintIn, db: Session = Depends(get_db), user=Depends(
 def changer_statut_sprint(sid: int, payload: dict, db: Session = Depends(get_db), user=Depends(require_role("stagiaire", "admin", "rh"))):
     s = db.get(Sprint, sid)
     if not s: raise HTTPException(404)
+    if user.role == "stagiaire":
+        cand = db.query(CandidatureStage).filter(
+            CandidatureStage.id == s.candidature_id,
+            CandidatureStage.stagiaire_id == user.id
+        ).first()
+        if not cand:
+            raise HTTPException(403, "Accès refusé")
     s.statut = payload.get("statut", s.statut)
     db.commit(); db.refresh(s)
     return _ser_sprint(s)
@@ -119,6 +133,23 @@ def changer_statut_sprint(sid: int, payload: dict, db: Session = Depends(get_db)
 
 @router.get("/sprints/{sid}/taches")
 def taches_sprint(sid: int, db: Session = Depends(get_db), user=Depends(require_role("stagiaire", "admin", "rh", "encadrant"))):
+    sprint = db.get(Sprint, sid)
+    if not sprint: raise HTTPException(404)
+    if user.role == "stagiaire":
+        cand = db.query(CandidatureStage).filter(
+            CandidatureStage.id == sprint.candidature_id,
+            CandidatureStage.stagiaire_id == user.id
+        ).first()
+        if not cand:
+            raise HTTPException(403, "Accès refusé")
+    elif user.role == "encadrant":
+        cand = db.get(CandidatureStage, sprint.candidature_id)
+        sujet = db.query(SujetStage).filter(
+            SujetStage.id == cand.sujet_id,
+            SujetStage.encadrant_id == user.id
+        ).first() if cand else None
+        if not sujet:
+            raise HTTPException(403, "Ce stagiaire n'est pas sous votre supervision")
     taches = db.query(Tache).filter(Tache.sprint_id == sid).order_by(Tache.ordre).all()
     return [_ser_tache(t) for t in taches]
 
@@ -160,6 +191,14 @@ def creer_tache(payload: TacheIn, db: Session = Depends(get_db), user=Depends(re
 def modifier_tache(tid: int, payload: dict, db: Session = Depends(get_db), user=Depends(require_role("stagiaire", "admin", "rh"))):
     t = db.get(Tache, tid)
     if not t: raise HTTPException(404)
+    if user.role == "stagiaire":
+        sprint = db.get(Sprint, t.sprint_id)
+        cand = db.query(CandidatureStage).filter(
+            CandidatureStage.id == sprint.candidature_id,
+            CandidatureStage.stagiaire_id == user.id
+        ).first() if sprint else None
+        if not cand:
+            raise HTTPException(403, "Accès refusé")
     for k in ("titre", "description", "statut", "priorite", "ordre"):
         if k in payload:
             setattr(t, k, payload[k])
@@ -171,6 +210,14 @@ def modifier_tache(tid: int, payload: dict, db: Session = Depends(get_db), user=
 def supprimer_tache(tid: int, db: Session = Depends(get_db), user=Depends(require_role("stagiaire", "admin", "rh"))):
     t = db.get(Tache, tid)
     if not t: raise HTTPException(404)
+    if user.role == "stagiaire":
+        sprint = db.get(Sprint, t.sprint_id)
+        cand = db.query(CandidatureStage).filter(
+            CandidatureStage.id == sprint.candidature_id,
+            CandidatureStage.stagiaire_id == user.id
+        ).first() if sprint else None
+        if not cand:
+            raise HTTPException(403, "Accès refusé")
     db.delete(t); db.commit()
 
 
@@ -186,6 +233,9 @@ class ReportIn(BaseModel):
 @router.post("/daily-report", status_code=201)
 def soumettre_report(payload: ReportIn, db: Session = Depends(get_db), user=Depends(require_role("stagiaire"))):
     c = _get_cand_active(user.id, db)
+    sprint = db.get(Sprint, payload.sprint_id)
+    if not sprint or sprint.candidature_id != c.id:
+        raise HTTPException(403, "Accès refusé")
     today = date.today()
     existing = db.query(DailyReport).filter(
         DailyReport.stagiaire_id == user.id,
