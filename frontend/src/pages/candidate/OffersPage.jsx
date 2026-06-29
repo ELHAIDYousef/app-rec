@@ -8,24 +8,49 @@ const PAGE_SIZE = 9;
 
 export default function OffersPage() {
   const navigate = useNavigate();
-  const [offers,  setOffers]  = useState([]);
-  const [myApps,  setMyApps]  = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search,  setSearch]  = useState("");
-  const [page,    setPage]    = useState(1);
+  const [offers,          setOffers]          = useState([]);
+  const [myApps,          setMyApps]          = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [search,          setSearch]          = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page,            setPage]            = useState(1);
+  const [pages,           setPages]           = useState(1);
+  const [total,           setTotal]           = useState(0);
 
+  // Fetch the candidate's own applications once (used only for alreadyApplied check).
+  // page_size=200 is acceptable — a single candidate rarely exceeds 200 applications.
   useEffect(() => {
-    Promise.all([offresAPI.lister({ statut: "ouverte", page_size: 200 }), applicationsAPI.mesCandidatures({ page_size: 200 })])
-      .then(([o, a]) => { setOffers(o.data.items); setMyApps(a.data.items); })
-      .finally(() => setLoading(false));
+    applicationsAPI.mesCandidatures({ page_size: 200 })
+      .then(r => setMyApps(r.data.items));
   }, []);
 
-  const alreadyApplied = id => myApps.some(a => a.offre_id === id);
-  const filtered = offers.filter(o => o.titre.toLowerCase().includes(search.toLowerCase()));
-  const pages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Debounce search input: flush to debouncedSearch and reset to page 1 after 400ms.
+  // Both state updates are batched by React 18 → single re-render → single fetch.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const handleSearch = val => { setSearch(val); setPage(1); };
+  // Server-side fetch: re-runs whenever page or debouncedSearch changes.
+  useEffect(() => {
+    setLoading(true);
+    const params = { statut: "ouverte", page, page_size: PAGE_SIZE };
+    if (debouncedSearch) params.search = debouncedSearch;
+    offresAPI.lister(params)
+      .then(r => {
+        setOffers(r.data.items);
+        setTotal(r.data.total);
+        setPages(r.data.pages);
+      })
+      .finally(() => setLoading(false));
+  }, [page, debouncedSearch]);
+
+  const alreadyApplied = id => myApps.some(a => a.offre_id === id);
+
+  const handlePage = p => { setLoading(true); setPage(p); };
 
   if (loading) return <div className="loading-page"><Spinner size={28} /></div>;
 
@@ -34,18 +59,18 @@ export default function OffersPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Offres d'emploi</h1>
-          <p className="page-subtitle">{filtered.length} offre(s) disponible(s)</p>
+          <p className="page-subtitle">{total} offre(s) disponible(s)</p>
         </div>
         <input
           className="field-input"
           placeholder="Rechercher un poste..."
           value={search}
-          onChange={e => handleSearch(e.target.value)}
+          onChange={e => setSearch(e.target.value)}
           style={{ width: 240, marginBottom: 0 }}
         />
       </div>
 
-      {paginated.length === 0 ? (
+      {offers.length === 0 ? (
         <EmptyState
           title="Aucune offre disponible"
           description="Revenez plus tard, de nouvelles offres seront publiées prochainement."
@@ -53,7 +78,7 @@ export default function OffersPage() {
       ) : (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
-            {paginated.map(o => {
+            {offers.map(o => {
               const applied = alreadyApplied(o.id);
               return (
                 <div key={o.id} className="card" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -84,7 +109,7 @@ export default function OffersPage() {
               );
             })}
           </div>
-          <Pagination page={page} pages={pages} total={filtered.length} onChange={setPage} />
+          <Pagination page={page} pages={pages} total={total} onChange={handlePage} />
         </>
       )}
     </div>
