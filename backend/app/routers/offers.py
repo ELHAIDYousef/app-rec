@@ -1,3 +1,4 @@
+import math
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -19,18 +20,30 @@ def _enrichir(offre: Offre, db: Session) -> OffreOut:
     return out
 
 
-@router.get("", response_model=List[OffreOut])
+@router.get("")
 def lister_offres(
     statut: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=200),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     q = db.query(Offre)
     if statut: q = q.filter(Offre.statut == statut)
+    if search: q = q.filter(Offre.titre.ilike(f"%{search}%"))
     # RH voit seulement ses propres offres — Admin voit tout
     if user.role == "rh":
         q = q.filter(Offre.cree_par == user.id)
-    return [_enrichir(o, db) for o in q.order_by(Offre.cree_le.desc()).all()]
+    total = q.count()
+    items = q.order_by(Offre.cree_le.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": [_enrichir(o, db).model_dump(mode="json") for o in items],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
 @router.get("/{offre_id}", response_model=OffreOut)

@@ -1,8 +1,20 @@
 import { useState, useEffect } from "react";
 import { employeAPI } from "api/formation";
 
+const PAGE_SIZE = 10;
 const scoreColor = (n) =>
   n >= 70 ? "var(--success)" : n >= 50 ? "var(--warning)" : "var(--danger)";
+
+function PaginationBar({ page, pages, total, onChange }) {
+  if (!pages || pages <= 1) return null;
+  return (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--g2)" }}>
+      <button className="btn btn-outline btn-sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>← Précédent</button>
+      <span style={{ fontSize: 13, color: "var(--text2)" }}>Page {page} / {pages} <span style={{ color: "var(--text3)" }}>({total})</span></span>
+      <button className="btn btn-outline btn-sm" disabled={page >= pages} onClick={() => onChange(page + 1)}>Suivant →</button>
+    </div>
+  );
+}
 
 export default function EmployeDashboard({ employe, onLogout, onPasser }) {
   const [onglet,     setOnglet]     = useState("tests");
@@ -10,11 +22,25 @@ export default function EmployeDashboard({ employe, onLogout, onPasser }) {
   const [resultats,  setResultats]  = useState([]);
   const [detail,     setDetail]     = useState(null);
 
-  useEffect(() => { charger(); }, [onglet]);
+  const [fPage,  setFPage]  = useState(1);
+  const [fPages, setFPages] = useState(1);
+  const [fTotal, setFTotal] = useState(0);
 
-  const charger = async () => {
-    if (onglet === "tests")     setFormations(await employeAPI.formations());
-    if (onglet === "resultats") setResultats(await employeAPI.resultats());
+  const [rPage,  setRPage]  = useState(1);
+  const [rPages, setRPages] = useState(1);
+  const [rTotal, setRTotal] = useState(0);
+
+  useEffect(() => { charger(1); }, [onglet]);
+
+  const charger = async (p = 1) => {
+    if (onglet === "tests") {
+      const r = await employeAPI.formations(p, PAGE_SIZE);
+      setFormations(r.items); setFPage(r.page); setFPages(r.pages); setFTotal(r.total);
+    }
+    if (onglet === "resultats") {
+      const r = await employeAPI.resultats(p, PAGE_SIZE);
+      setResultats(r.items); setRPage(r.page); setRPages(r.pages); setRTotal(r.total);
+    }
   };
 
   const voirDetail = async (id) => {
@@ -53,7 +79,7 @@ export default function EmployeDashboard({ employe, onLogout, onPasser }) {
             <div className="page-header">
               <div>
                 <h1 className="page-title">Tests disponibles</h1>
-                <p className="page-subtitle">{formations.length} test(s)</p>
+                <p className="page-subtitle">{fTotal} test(s)</p>
               </div>
             </div>
             {formations.length === 0 && (
@@ -81,6 +107,7 @@ export default function EmployeDashboard({ employe, onLogout, onPasser }) {
                 </button>
               </div>
             ))}
+            <PaginationBar page={fPage} pages={fPages} total={fTotal} onChange={p => charger(p)} />
           </div>
         )}
 
@@ -88,6 +115,7 @@ export default function EmployeDashboard({ employe, onLogout, onPasser }) {
           <div>
             <div className="page-header">
               <h1 className="page-title">Mes résultats</h1>
+              <p className="page-subtitle">{rTotal} résultat(s)</p>
             </div>
             {resultats.length === 0 ? (
               <div className="empty-state">
@@ -95,43 +123,46 @@ export default function EmployeDashboard({ employe, onLogout, onPasser }) {
                 <p className="empty-state-desc">Passez votre premier test pour voir vos résultats ici.</p>
               </div>
             ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Formation</th>
-                      <th>Note</th>
-                      <th>Durée</th>
-                      <th>Date</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {resultats.map(r => (
-                      <tr key={r.id}>
-                        <td>{r.formation}</td>
-                        <td>
-                          <span style={{ fontWeight: 600, color: scoreColor(r.note) }}>
-                            {r.note}/100
-                          </span>
-                        </td>
-                        <td style={{ color: "var(--text3)" }}>
-                          {r.duree_min ? `${r.duree_min} min` : "—"}
-                        </td>
-                        <td style={{ color: "var(--text3)" }}>
-                          {new Date(r.passe_le).toLocaleDateString("fr-FR")}
-                        </td>
-                        <td>
-                          <button className="btn btn-outline btn-sm"
-                            onClick={() => voirDetail(r.id)}>
-                            Détail
-                          </button>
-                        </td>
+              <>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Formation</th>
+                        <th>Note</th>
+                        <th>Durée</th>
+                        <th>Date</th>
+                        <th></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {resultats.map(r => (
+                        <tr key={r.id}>
+                          <td>{r.formation}</td>
+                          <td>
+                            <span style={{ fontWeight: 600, color: scoreColor(r.note) }}>
+                              {r.note}/100
+                            </span>
+                          </td>
+                          <td style={{ color: "var(--text3)" }}>
+                            {r.duree_min ? `${r.duree_min} min` : "—"}
+                          </td>
+                          <td style={{ color: "var(--text3)" }}>
+                            {new Date(r.passe_le).toLocaleDateString("fr-FR")}
+                          </td>
+                          <td>
+                            <button className="btn btn-outline btn-sm"
+                              onClick={() => voirDetail(r.id)}>
+                              Détail
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <PaginationBar page={rPage} pages={rPages} total={rTotal} onChange={p => charger(p)} />
+              </>
             )}
           </div>
         )}

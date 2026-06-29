@@ -4,23 +4,36 @@ from datetime import datetime
 from app.models.user import UserRole
 import re
 
+
+def _valider_mot_de_passe(v: str) -> str:
+    if len(v) < 8:
+        raise ValueError("Le mot de passe doit contenir au moins 8 caractères")
+    if not re.search(r"[A-Z]", v):
+        raise ValueError("Le mot de passe doit contenir au moins une majuscule")
+    if not re.search(r"[0-9]", v):
+        raise ValueError("Le mot de passe doit contenir au moins un chiffre")
+    return v
+
+
 class UserOut(BaseModel):
     id:          int
     nom:         str
     email:       str
-    role:        UserRole
+    role:        str
     is_active:   bool
     cree_le:     Optional[datetime] = None
-    # Candidat uniquement
     telephone:   Optional[str] = None
-    # RH uniquement
-    departement: Optional[str] = None
-    cal_link:    Optional[str] = None
-    cal_api_key: Optional[str] = None
+    # RH
+    departement:    Optional[str] = None
+    cal_link:       Optional[str] = None
+    cal_configured: bool          = False
+    # Encadrant / Stagiaire
+    specialite:  Optional[str] = None
+    # Stagiaire
+    universite:  Optional[str] = None
+    niveau:      Optional[str] = None
 
     model_config = {"from_attributes": True}
-
-
 
 
 class UserRegister(BaseModel):
@@ -42,6 +55,11 @@ class UserRegister(BaseModel):
             raise ValueError("Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes")
         return v
 
+    @field_validator("mot_de_passe")
+    @classmethod
+    def mot_de_passe_valide(cls, v):
+        return _valider_mot_de_passe(v)
+
 
 class UserLogin(BaseModel):
     email:        EmailStr
@@ -60,6 +78,8 @@ class UserCreate(BaseModel):
     mot_de_passe: str
     role:         UserRole = UserRole.rh
     departement:  Optional[str] = None
+    specialite:   Optional[str] = None
+
     @field_validator("nom")
     @classmethod
     def nom_valide(cls, v):
@@ -74,11 +94,19 @@ class UserCreate(BaseModel):
             raise ValueError("Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes")
         return v
 
+    @field_validator("mot_de_passe")
+    @classmethod
+    def mot_de_passe_valide(cls, v):
+        return _valider_mot_de_passe(v)
+
 
 class UserUpdate(BaseModel):
     nom:         Optional[str] = None
     telephone:   Optional[str] = None
     departement: Optional[str] = None
+    universite:  Optional[str] = None
+    niveau:      Optional[str] = None
+    specialite:  Optional[str] = None
 
     @field_validator("nom")
     @classmethod
@@ -98,6 +126,11 @@ class UserUpdate(BaseModel):
 class PasswordChange(BaseModel):
     mot_de_passe_actuel:  str
     nouveau_mot_de_passe: str
+
+    @field_validator("nouveau_mot_de_passe")
+    @classmethod
+    def nouveau_mot_de_passe_valide(cls, v):
+        return _valider_mot_de_passe(v)
 
 
 class RHSettings(BaseModel):

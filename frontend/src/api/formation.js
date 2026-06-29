@@ -32,15 +32,15 @@ export const authAPI = {
 
 // ── Formateur ────────────────────────────────────────────
 export const formateurAPI = {
-  employes:           ()    => req("GET",    "/api/formation/formateur/employes"),
-  creerEmploye:       (nom) => req("POST",   "/api/formation/formateur/employes",    { nom }),
-  basculerEmploye:    (id)  => req("PATCH",  `/api/formation/formateur/employes/${id}/activer`),
-  formateurs:         ()    => req("GET",    "/api/formation/formateur/formateurs"),
-  creerFormateur:     (nom) => req("POST",   "/api/formation/formateur/formateurs",  { nom }),
-  formations:         ()    => req("GET",    "/api/formation/formateur/formations"),
-  supprimerFormation: (id)  => req("DELETE", `/api/formation/formateur/formations/${id}`),
-  supprimer:          (id)  => req("DELETE", `/api/formation/formateur/employes/${id}`),
-  questions:          (id)  => req("GET",    `/api/formation/formateur/formations/${id}/questions`),
+  employes:           (page=1, pageSize=10) => req("GET",    `/api/formation/formateur/employes?page=${page}&page_size=${pageSize}`),
+  creerEmploye:       (nom)                 => req("POST",   "/api/formation/formateur/employes",    { nom }),
+  basculerEmploye:    (id)                  => req("PATCH",  `/api/formation/formateur/employes/${id}/activer`),
+  formateurs:         (page=1, pageSize=10) => req("GET",    `/api/formation/formateur/formateurs?page=${page}&page_size=${pageSize}`),
+  creerFormateur:     (nom)                 => req("POST",   "/api/formation/formateur/formateurs",  { nom }),
+  formations:         (page=1, pageSize=10) => req("GET",    `/api/formation/formateur/formations?page=${page}&page_size=${pageSize}`),
+  supprimerFormation: (id)                  => req("DELETE", `/api/formation/formateur/formations/${id}`),
+  supprimer:          (id)                  => req("DELETE", `/api/formation/formateur/employes/${id}`),
+  questions:          (id)                  => req("GET",    `/api/formation/formateur/formations/${id}/questions`),
 
   creerFormation: async (titre, contenu, fichier) => {
     const fd = new FormData();
@@ -59,9 +59,9 @@ export const formateurAPI = {
 
 // ── Employé ──────────────────────────────────────────────
 export const employeAPI = {
-  formations: ()          => req("GET",  "/api/formation/employe/formations"),
-  questions:  (fid)       => req("GET",  `/api/formation/employe/formations/${fid}/questions`),
-  soumettre:  (fid, data) => req("POST", `/api/formation/employe/formations/${fid}/soumettre`, data),
-  resultats:  ()          => req("GET",  "/api/formation/employe/resultats"),
-  resultat:   (id)        => req("GET",  `/api/formation/employe/resultats/${id}`),
+  formations: (page=1, pageSize=10) => req("GET",  `/api/formation/employe/formations?page=${page}&page_size=${pageSize}`),
+  questions:  (fid)                 => req("GET",  `/api/formation/employe/formations/${fid}/questions`),
+  soumettre:  (fid, data)           => req("POST", `/api/formation/employe/formations/${fid}/soumettre`, data),
+  resultats:  (page=1, pageSize=10) => req("GET",  `/api/formation/employe/resultats?page=${page}&page_size=${pageSize}`),
+  resultat:   (id)                  => req("GET",  `/api/formation/employe/resultats/${id}`),
 };

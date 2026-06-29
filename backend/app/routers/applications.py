@@ -1,4 +1,4 @@
-import os, uuid, logging
+import os, logging, math
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, BackgroundTasks
 from fastapi.responses import FileResponse
@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user, require_role
 from app.core.email import email_reception, email_statut_change
 from app.core.ats import analyze_cv
+from app.core.upload_helper import valider_et_sauvegarder, ALLOWED_PDF
 from app.models.application import Application, StatutCandidature
 from app.models.notification import Notification
 from app.models.offer import Offre
@@ -180,11 +181,7 @@ async def postuler(
 
     cv_fichier = None
     if cv:
-        if cv.content_type != "application/pdf": raise HTTPException(400, "Le CV doit être un PDF")
-        content = await cv.read()
-        if len(content) > cfg.MAX_UPLOAD_MB * 1024 * 1024: raise HTTPException(400, f"CV trop volumineux (max {cfg.MAX_UPLOAD_MB} Mo)")
-        cv_fichier = f"{uuid.uuid4().hex}_{cv.filename}"
-        with open(os.path.join(CV_DIR, cv_fichier), "wb") as f: f.write(content)
+        cv_fichier = await valider_et_sauvegarder(cv, CV_DIR, ALLOWED_PDF, cfg.MAX_UPLOAD_MB)
 
     c = Application(offre_id=offre_id, user_id=user.id, motivation=motivation.strip(), cv_fichier=cv_fichier)
     db.add(c); db.flush()
@@ -199,17 +196,32 @@ async def postuler(
     return _enrichir_candidat(c)
 
 
-@router.get("/mes-candidatures", response_model=List[CandidatureCandidat])
-def mes_candidatures(db: Session = Depends(get_db), user: User = Depends(require_role("candidat"))):
-    cs = db.query(Application).filter(Application.user_id == user.id).order_by(Application.postule_le.desc()).all()
-    return [_enrichir_candidat(c) for c in cs]
+@router.get("/mes-candidatures")
+def mes_candidatures(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=200),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("candidat")),
+):
+    q = db.query(Application).filter(Application.user_id == user.id).order_by(Application.postule_le.desc())
+    total = q.count()
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": [_enrichir_candidat(c).model_dump(mode="json") for c in items],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
-@router.get("", response_model=List[CandidatureOut])
+@router.get("")
 def lister_candidatures(
     offre_id: Optional[int]             = Query(None),
     statut:   Optional[StatutCandidature] = Query(None),
     tri:      str                         = Query("date"),
+    page:     int                         = Query(1, ge=1),
+    page_size: int                        = Query(10, ge=1, le=100),
     db:       Session = Depends(get_db),
     user:     User    = Depends(require_role("rh", "admin")),
 ):
@@ -225,7 +237,15 @@ def lister_candidatures(
         q = q.order_by(case((Application.score_groq == None, 1), else_=0), Application.score_groq.desc())
     else:
         q = q.order_by(Application.postule_le.desc())
-    return [_enrichir(c) for c in q.all()]
+    total = q.count()
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": [_enrichir(c).model_dump(mode="json") for c in items],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
 @router.get("/{c_id}", response_model=CandidatureOut)

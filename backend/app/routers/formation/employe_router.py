@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+import math
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
@@ -15,11 +16,13 @@ router = APIRouter(prefix="/api/formation/employe", tags=["Formation â€” EmployÃ
 
 @router.get("/formations")
 def formations_disponibles(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     db:  Session = Depends(get_db),
     emp: Employe = Depends(get_employe),
 ):
     formations = db.query(Formation).all()
-    result = []
+    all_items = []
     for f in formations:
         nb_q = len(f.questions)
         if nb_q == 0:
@@ -35,14 +38,23 @@ def formations_disponibles(
             .filter(Resultat.employe_id == emp.id, Resultat.formation_id == f.id)
             .count()
         )
-        result.append({
+        all_items.append({
             "id":             f.id,
             "titre":          f.titre,
             "nb_questions":   nb_q,
             "meilleure_note": meilleur.note if meilleur else None,
             "nb_tentatives":  nb_tentatives,
         })
-    return result
+    total = len(all_items)
+    start = (page - 1) * page_size
+    items = all_items[start:start + page_size]
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
 @router.get("/formations/{fid}/questions", response_model=List[QuestionTestOut])
@@ -89,24 +101,26 @@ def soumettre(
     return SoumettreOut(resultat_id=r.id, note=note, corrections=details)
 
 
-@router.get("/resultats", response_model=List[ResultatListOut])
+@router.get("/resultats")
 def mes_resultats(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     db:  Session = Depends(get_db),
     emp: Employe = Depends(get_employe),
 ):
-    rs = (
-        db.query(Resultat)
-        .filter(Resultat.employe_id == emp.id)
-        .order_by(Resultat.passe_le.desc())
-        .all()
-    )
-    return [
-        ResultatListOut(
-            id=r.id, formation=r.formation.titre,
-            note=r.note, duree_min=r.duree_min, passe_le=r.passe_le,
-        )
-        for r in rs
-    ]
+    q = db.query(Resultat).filter(Resultat.employe_id == emp.id).order_by(Resultat.passe_le.desc())
+    total = q.count()
+    rs = q.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": [
+            ResultatListOut(id=r.id, formation=r.formation.titre, note=r.note, duree_min=r.duree_min, passe_le=r.passe_le).model_dump(mode="json")
+            for r in rs
+        ],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / page_size) if total > 0 else 1,
+        "page_size": page_size,
+    }
 
 
 @router.get("/resultats/{rid}", response_model=ResultatDetailOut)

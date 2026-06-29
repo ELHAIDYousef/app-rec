@@ -44,9 +44,9 @@ export const offresAPI = {
 };
 
 export const applicationsAPI = {
-  postuler:      formData => api.post("/api/candidatures", formData, { headers: { "Content-Type": "multipart/form-data" } }),
-  mesCandidatures: ()     => api.get("/api/candidatures/mes-candidatures"),
-  lister:        params   => api.get("/api/candidatures", { params }),
+  postuler:        formData => api.post("/api/candidatures", formData, { headers: { "Content-Type": "multipart/form-data" } }),
+  mesCandidatures: params  => api.get("/api/candidatures/mes-candidatures", { params }),
+  lister:          params  => api.get("/api/candidatures", { params }),
   obtenir:       id       => api.get(`/api/candidatures/${id}`),
   changerStatut: (id, d)  => api.patch(`/api/candidatures/${id}/statut`, d),
   relancerNLP:   id       => api.post(`/api/candidatures/${id}/relancer-nlp`),
@@ -67,17 +67,18 @@ export const applicationsAPI = {
 };
 
 export const notificationsAPI = {
-  lister:       ()   => api.get("/api/notifications"),
-  marquerLue:   id   => api.patch(`/api/notifications/${id}/lue`),
-  toutMarquer:  ()   => api.post("/api/notifications/tout-lire"),
+  lister:       params => api.get("/api/notifications", { params }),
+  marquerLue:   id     => api.patch(`/api/notifications/${id}/lue`),
+  toutMarquer:  ()     => api.post("/api/notifications/tout-lire"),
 };
 
 export const adminAPI = {
-  listerUtilisateurs:     ()  => api.get("/api/admin/utilisateurs"),
-  supprimerUtilisateur:   id  => api.delete(`/api/admin/utilisateurs/${id}`),
-  creerUtilisateur:   data   => api.post("/api/admin/utilisateurs", data),
-  basculerActivation: id     => api.patch(`/api/admin/utilisateurs/${id}/activer`),
-  statistiques:       ()     => api.get("/api/admin/statistiques"),
+  listerUtilisateurs:     params => api.get("/api/admin/utilisateurs", { params }),
+  supprimerUtilisateur:   id     => api.delete(`/api/admin/utilisateurs/${id}`),
+  creerUtilisateur:       data   => api.post("/api/admin/utilisateurs", data),
+  basculerActivation:     id     => api.patch(`/api/admin/utilisateurs/${id}/activer`),
+  statistiques:           ()     => api.get("/api/admin/statistiques"),
+  graphiques:             ()     => api.get("/api/admin/graphiques"),
 };
 
 export const calAPI = {

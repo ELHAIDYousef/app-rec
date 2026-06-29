@@ -1,6 +1,19 @@
 import { useState, useEffect } from "react";
 import { formateurAPI as adminAPI } from "api/formation";
 
+const PAGE_SIZE = 10;
+
+function PaginationBar({ page, pages, total, onChange }) {
+  if (!pages || pages <= 1) return null;
+  return (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--g2)" }}>
+      <button className="btn btn-outline btn-sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>← Précédent</button>
+      <span style={{ fontSize: 13, color: "var(--text2)" }}>Page {page} / {pages} <span style={{ color: "var(--text3)" }}>({total})</span></span>
+      <button className="btn btn-outline btn-sm" disabled={page >= pages} onClick={() => onChange(page + 1)}>Suivant →</button>
+    </div>
+  );
+}
+
 export default function FormationAdmin({ employe, onLogout }) {
   const [onglet,     setOnglet]     = useState("employes");
   const [employes,   setEmployes]   = useState([]);
@@ -14,13 +27,34 @@ export default function FormationAdmin({ employe, onLogout }) {
   const [contenuFo,  setContenuFo]  = useState("");
   const [fichierFo,  setFichierFo]  = useState(null);
 
-  useEffect(() => { charger(); }, [onglet]);
+  const [empPage,   setEmpPage]   = useState(1);
+  const [empPages,  setEmpPages]  = useState(1);
+  const [empTotal,  setEmpTotal]  = useState(0);
 
-  const charger = async () => {
+  const [foPage,    setFoPage]    = useState(1);
+  const [foPages,   setFoPages]   = useState(1);
+  const [foTotal,   setFoTotal]   = useState(0);
+
+  const [fmPage,    setFmPage]    = useState(1);
+  const [fmPages,   setFmPages]   = useState(1);
+  const [fmTotal,   setFmTotal]   = useState(0);
+
+  useEffect(() => { charger(1); }, [onglet]);
+
+  const charger = async (p = 1) => {
     setMsg("");
-    if (onglet === "employes")   setEmployes(await adminAPI.employes());
-    if (onglet === "formations") setFormations(await adminAPI.formations());
-    if (onglet === "creer-formateur") setFormateurs(await adminAPI.formateurs());
+    if (onglet === "employes") {
+      const r = await adminAPI.employes(p, PAGE_SIZE);
+      setEmployes(r.items); setEmpPage(r.page); setEmpPages(r.pages); setEmpTotal(r.total);
+    }
+    if (onglet === "formations") {
+      const r = await adminAPI.formations(p, PAGE_SIZE);
+      setFormations(r.items); setFoPage(r.page); setFoPages(r.pages); setFoTotal(r.total);
+    }
+    if (onglet === "creer-formateur") {
+      const r = await adminAPI.formateurs(p, PAGE_SIZE);
+      setFormateurs(r.items); setFmPage(r.page); setFmPages(r.pages); setFmTotal(r.total);
+    }
   };
 
   const creerEmploye = async () => {
@@ -28,7 +62,7 @@ export default function FormationAdmin({ employe, onLogout }) {
     try {
       const r = await adminAPI.creerEmploye(nomEmp);
       setMsg(`Employé créé — Code : ${r.code}`);
-      setNomEmp(""); charger();
+      setNomEmp(""); charger(1);
     } catch (e) { setMsg("Erreur : " + e.message); }
   };
 
@@ -37,7 +71,7 @@ export default function FormationAdmin({ employe, onLogout }) {
     try {
       const r = await adminAPI.creerFormateur(nomForm);
       setMsg(`Administrateur créé — Code : ${r.code}`);
-      setNomForm(""); charger();
+      setNomForm(""); charger(1);
     } catch (e) { setMsg("Erreur : " + e.message); }
   };
 
@@ -49,17 +83,16 @@ export default function FormationAdmin({ employe, onLogout }) {
       const r = await adminAPI.creerFormation(titreFo, contenuFo, fichierFo);
       setMsg(r.message);
       setTitreFo(""); setContenuFo(""); setFichierFo(null);
-      charger();
+      charger(1);
     } catch (e) { setMsg("Erreur : " + e.message); }
   };
-
 
   const supprimerEmploye = async (id) => {
     if (!window.confirm("Confirmer la suppression de cet employé ?")) return;
     try {
       await adminAPI.supprimer(id);
       setMsg("Employé supprimé avec succès.");
-      charger();
+      charger(empPage);
     } catch {
       setMsg("Erreur : impossible de supprimer cet employé.");
     }
@@ -117,7 +150,7 @@ export default function FormationAdmin({ employe, onLogout }) {
             <div className="page-header">
               <div>
                 <h1 className="page-title">Employés</h1>
-                <p className="page-subtitle">{employes.length} compte(s)</p>
+                <p className="page-subtitle">{empTotal} compte(s)</p>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -140,7 +173,7 @@ export default function FormationAdmin({ employe, onLogout }) {
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
                     className={`btn btn-sm ${!e.is_active ? "btn-outline" : "btn-danger"}`}
-                    onClick={async () => { await adminAPI.basculerEmploye(e.id); charger(); }}>
+                    onClick={async () => { await adminAPI.basculerEmploye(e.id); charger(empPage); }}>
                     {e.is_active ? "Désactiver" : "Activer"}
                   </button>
                   <button
@@ -151,6 +184,7 @@ export default function FormationAdmin({ employe, onLogout }) {
                 </div>
               </div>
             ))}
+            <PaginationBar page={empPage} pages={empPages} total={empTotal} onChange={p => charger(p)} />
           </div>
         )}
 
@@ -159,7 +193,7 @@ export default function FormationAdmin({ employe, onLogout }) {
             <div className="page-header">
               <div>
                 <h1 className="page-title">Formations</h1>
-                <p className="page-subtitle">{formations.length} formation(s)</p>
+                <p className="page-subtitle">{foTotal} formation(s)</p>
               </div>
             </div>
             {formations.map(f => (
@@ -177,12 +211,13 @@ export default function FormationAdmin({ employe, onLogout }) {
                     Voir questions
                   </button>
                   <button className="btn btn-danger btn-sm"
-                    onClick={async () => { await adminAPI.supprimerFormation(f.id); charger(); }}>
+                    onClick={async () => { await adminAPI.supprimerFormation(f.id); charger(foPage); }}>
                     Supprimer
                   </button>
                 </div>
               </div>
             ))}
+            <PaginationBar page={foPage} pages={foPages} total={foTotal} onChange={p => charger(p)} />
           </div>
         )}
 
@@ -255,7 +290,7 @@ export default function FormationAdmin({ employe, onLogout }) {
             <div className="page-header">
               <div>
                 <h1 className="page-title">Formateurs</h1>
-                <p className="page-subtitle">{formateurs.length} formateur(s)</p>
+                <p className="page-subtitle">{fmTotal} formateur(s)</p>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
@@ -271,19 +306,22 @@ export default function FormationAdmin({ employe, onLogout }) {
                 <p className="empty-state-desc">Créez le premier formateur ci-dessus.</p>
               </div>
             ) : (
-              formateurs.map(f => (
-                <div key={f.id} className="card" style={{ display: "flex",
-                  justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <div>
-                    <span style={{ fontWeight: 500 }}>{f.nom}</span>
-                    <code style={{ marginLeft: 10, background: "var(--g1)",
-                      padding: "2px 8px", borderRadius: 4, fontSize: 12 }}>
-                      {f.code_employe}
-                    </code>
+              <>
+                {formateurs.map(f => (
+                  <div key={f.id} className="card" style={{ display: "flex",
+                    justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div>
+                      <span style={{ fontWeight: 500 }}>{f.nom}</span>
+                      <code style={{ marginLeft: 10, background: "var(--g1)",
+                        padding: "2px 8px", borderRadius: 4, fontSize: 12 }}>
+                        {f.code_employe}
+                      </code>
+                    </div>
+                    <span className="badge badge-rh">Formateur</span>
                   </div>
-                  <span className="badge badge-rh">Formateur</span>
-                </div>
-              ))
+                ))}
+                <PaginationBar page={fmPage} pages={fmPages} total={fmTotal} onChange={p => charger(p)} />
+              </>
             )}
           </div>
         )}

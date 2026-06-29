@@ -9,6 +9,7 @@ env/
 
 # Fichiers uploadés (CV des candidats)
 app/uploads/
+uploads/
 
 # Cache Python
 __pycache__/
@@ -29,3 +30,6 @@ logs/
 .idea/
 .DS_Store
 *.swp
+
+output.txt
+

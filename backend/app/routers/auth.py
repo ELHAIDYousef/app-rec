@@ -1,16 +1,39 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr, field_validator
+import re
+from typing import Optional
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token, get_current_user
-from app.models.user import User, UserRole, Candidat, RessourceHumaine, Admin
+from app.models.user import User, UserRole, Candidat, RessourceHumaine, Admin, Encadrant, Stagiaire
 from app.schemas.user import UserRegister, UserLogin, UserOut, UserUpdate, PasswordChange, TokenOut, RHSettings
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
+class StagiaireRegister(BaseModel):
+    nom:          str
+    email:        EmailStr
+    mot_de_passe: str
+    universite:   Optional[str] = None
+    niveau:       Optional[str] = None
+    specialite:   Optional[str] = None
+
+    @field_validator("mot_de_passe")
+    @classmethod
+    def mot_de_passe_valide(cls, v):
+        if len(v) < 8:
+            raise ValueError("Le mot de passe doit contenir au moins 8 caractères")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Le mot de passe doit contenir au moins une majuscule")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Le mot de passe doit contenir au moins un chiffre")
+        return v
+
+
 @router.post("/inscription", response_model=TokenOut, status_code=201)
 def inscription(payload: UserRegister, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == payload.email).first():
+    if db.query(User.id).filter(User.email == payload.email).scalar():
         raise HTTPException(400, "Cet email est déjà utilisé")
     user = Candidat(
         nom=payload.nom,
@@ -21,9 +44,28 @@ def inscription(payload: UserRegister, db: Session = Depends(get_db)):
     return {"access_token": create_access_token({"sub": str(user.id)}), "user": user}
 
 
+@router.post("/inscription-stagiaire", response_model=TokenOut, status_code=201)
+def inscription_stagiaire(payload: StagiaireRegister, db: Session = Depends(get_db)):
+    if db.query(User.id).filter(User.email == payload.email).scalar():
+        raise HTTPException(400, "Cet email est déjà utilisé")
+    user = Stagiaire(
+        nom          = payload.nom,
+        email        = payload.email,
+        mot_de_passe = hash_password(payload.mot_de_passe),
+        universite   = payload.universite,
+        niveau       = payload.niveau,
+        specialite   = payload.specialite,
+    )
+    db.add(user); db.commit(); db.refresh(user)
+    return {"access_token": create_access_token({"sub": str(user.id)}), "user": user}
+
+
 @router.post("/connexion", response_model=TokenOut)
 def connexion(payload: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = db.query(User).filter(
+        User.email == payload.email,
+        User.role.in_(["candidat", "rh", "admin", "stagiaire", "encadrant"]),
+    ).first()
     if not user or not verify_password(payload.mot_de_passe, user.mot_de_passe):
         raise HTTPException(401, "Email ou mot de passe incorrect")
     if not user.is_active:
@@ -43,8 +85,13 @@ def modifier_profil(payload: UserUpdate, db: Session = Depends(get_db),
         user.nom = payload.nom
     if payload.telephone is not None:
         user.telephone = payload.telephone
-    if payload.departement is not None and isinstance(user, (RessourceHumaine, Admin)):
+    if payload.departement is not None and isinstance(user, (RessourceHumaine, Admin, Encadrant)):
         user.departement = payload.departement
+    if isinstance(user, Stagiaire):
+        data = payload.model_dump(exclude_unset=True)
+        if "universite" in data: user.universite = data["universite"]
+        if "niveau"     in data: user.niveau     = data["niveau"]
+        if "specialite" in data: user.specialite = data["specialite"]
     db.commit(); db.refresh(user)
     return user
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional, List
 from datetime import date, datetime
 from app.models.offer import StatutOffre
@@ -19,12 +19,11 @@ class OffreCreate(BaseModel):
             raise ValueError("Le titre ne peut pas être vide")
         return v.strip()
 
-    @field_validator("date_fin")
-    @classmethod
-    def fin_apres_debut(cls, v, info):
-        if "date_debut" in info.data and v < info.data["date_debut"]:
-            raise ValueError("La date de fin doit être après la date de début")
-        return v
+    @model_validator(mode="after")
+    def verifier_dates(self):
+        if self.date_fin < self.date_debut:
+            raise ValueError("La date de fin doit être postérieure à la date de début")
+        return self
 
 
 class OffreUpdate(BaseModel):
@@ -34,6 +33,13 @@ class OffreUpdate(BaseModel):
     date_debut:  Optional[date]          = None
     date_fin:    Optional[date]          = None
     statut:      Optional[StatutOffre]   = None
+
+    @model_validator(mode="after")
+    def verifier_dates(self):
+        if self.date_debut is not None and self.date_fin is not None:
+            if self.date_fin < self.date_debut:
+                raise ValueError("La date de fin doit être postérieure à la date de début")
+        return self
 
 
 class OffreOut(BaseModel):
